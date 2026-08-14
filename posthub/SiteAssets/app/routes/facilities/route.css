@@ -1,0 +1,37 @@
+/* FACILITIES DASHBOARD - Route-specific overrides only */
+/* Shared layout uses posthub__* classes from shared.css */
+/* Card grid + card styles are shared: see .posthub__card* in shared.css */
+
+/* Page wrapper - centered */
+.facilities__wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  background: var(--color-bg-secondary);
+  padding: var(--space-xxl) var(--space-xxxl);
+  overflow-y: auto;
+}
+
+.facilities__wrapper > * {
+  width: 100%;
+  max-width: 75rem;
+}
+
+.facilities__body {
+  display: flex;
+  place-content: center;
+  place-items: center;
+}
+
+/* Page header */
+.facilities__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sNudge);
+  margin-bottom: 2.5rem;
+}
+
+@media (max-width: 768px) {
+  .facilities__wrapper { padding: 1.25rem var(--space-l); }
+}

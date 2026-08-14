@@ -1,0 +1,514 @@
+/* PostHub shared styles -- extracted from duplicated route patterns */
+
+/* ===================================
+   Page Layout
+   =================================== */
+
+.posthub__page-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-bg-secondary);
+  overflow: hidden;
+}
+
+.posthub__page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-xxl) var(--space-xxxl);
+  background: var(--color-bg-secondary);
+  flex-shrink: 0;
+}
+
+.posthub__title-with-icon {
+  display: flex;
+  align-items: center;
+  gap: var(--space-mNudge);
+}
+
+.posthub__home-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--color-brand-primary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--curve-easy-ease);
+  border-radius: var(--radius-md);
+}
+
+.posthub__home-icon:hover {
+  background: var(--color-brand-selected);
+  color: var(--color-brand-active);
+}
+
+.posthub__page-title {
+  font-size: var(--font-size-700);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  margin: 0;
+}
+
+.posthub__page-subtitle {
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-fg-secondary);
+  margin: 0;
+  font-style: italic;
+}
+
+.posthub__table-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 var(--space-xxxl) var(--space-xxl) var(--space-xxxl);
+  background: var(--color-bg-secondary);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===================================
+   Cards (shared by facilities dashboard + maintenance)
+   =================================== */
+
+.posthub__card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-xxl);
+}
+
+.posthub__card {
+  background: var(--color-bg-base);
+  padding: var(--space-xxxl);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-l);
+  transition: all 0.3s ease;
+}
+
+.posthub__card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-16);
+}
+
+.posthub__card-title {
+  font-size: var(--font-size-600);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  margin: 0;
+}
+
+.posthub__card-description {
+  font-size: var(--font-size-200);
+  color: var(--color-fg-secondary);
+  margin: 0;
+  flex: 1;
+}
+
+.posthub__card-btn {
+  padding: var(--space-mNudge) var(--space-xxl);
+  font-size: var(--font-size-300);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-inverted);
+  background: var(--color-brand-primary);
+  border: none;
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--curve-easy-ease);
+  text-align: center;
+  align-self: flex-start;
+}
+
+.posthub__card-btn:hover {
+  background: var(--color-brand-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-8);
+}
+
+.posthub__card--disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.posthub__card-btn--disabled {
+  background: #9e9e9e;
+  cursor: default;
+}
+
+@media (max-width: 768px) {
+  .posthub__card-grid { grid-template-columns: 1fr; }
+  .posthub__card { padding: var(--space-xxl); }
+  .posthub__card-btn { width: 100%; }
+}
+
+/* ===================================
+   Filter Sidebar (shared by search-package + reports)
+   =================================== */
+
+.posthub__filter-sidebar {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 30rem;
+  padding: var(--space-l) var(--space-xxl);
+  border-right: var(--stroke-thin) solid var(--color-stroke-subtle);
+  background: var(--color-bg-base);
+  overflow: visible;
+  flex-shrink: 0;
+  z-index: 5;
+}
+
+.posthub__filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sNudge) var(--space-xxl);
+  align-content: start;
+}
+
+.posthub__section-heading {
+  grid-column: 1 / -1;
+  font-size: 0.6875rem;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-fg-tertiary);
+  margin: 0;
+}
+
+.posthub__section-heading--separator {
+  margin-top: 0.25rem;
+  padding-top: var(--space-mNudge);
+  border-top: var(--stroke-thin) solid var(--color-stroke-subtle);
+}
+
+.posthub__filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.posthub__filter-label {
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg-secondary);
+}
+
+.posthub__button-row {
+  display: flex;
+  gap: var(--space-mNudge);
+  align-items: center;
+  padding-top: var(--space-mNudge);
+}
+
+@media (max-width: 768px) {
+  .posthub__filter-sidebar {
+    min-width: 0;
+    border-right: none;
+    border-bottom: var(--stroke-thin) solid var(--color-stroke-subtle);
+    max-height: 18.75rem;
+    padding: var(--space-l);
+  }
+  .posthub__filter-grid { grid-template-columns: 1fr; }
+}
+
+/* ===================================
+   Button with Icon
+   =================================== */
+
+.posthub__btn--with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sNudge);
+}
+
+.posthub__btn-icon {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.posthub__btn-icon svg {
+  width: 1em;
+  height: 1em;
+}
+
+/* ===================================
+   Status Badges
+   =================================== */
+
+.posthub__status-badge {
+  display: inline-block;
+  padding: var(--space-xs) var(--space-mNudge);
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-lg);
+  color: var(--color-fg-inverted);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.posthub__status-badge--pending { background: var(--posthub-status-pending); }
+.posthub__status-badge--in-transit { background: var(--posthub-status-in-transit); }
+.posthub__status-badge--arrived { background: var(--posthub-status-arrived); }
+.posthub__status-badge--delivered { background: var(--posthub-status-delivered); }
+
+/* ===================================
+   Tables
+   =================================== */
+
+.posthub__table {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sNudge);
+  flex: 1;
+  overflow: hidden;
+}
+
+.posthub__table-head {
+  display: grid;
+  grid-template-columns: var(--table-columns);
+  gap: 0;
+  z-index: var(--z-content);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.posthub__table-header {
+  padding: var(--space-mNudge) var(--space-l);
+  text-align: left;
+  font-size: 0.8125rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-brand-fg);
+  background: var(--color-brand-primary);
+  display: flex;
+  align-items: center;
+}
+
+.posthub__table-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sNudge);
+  flex: 1;
+  overflow-y: auto;
+}
+
+.posthub__table-row {
+  display: grid;
+  grid-template-columns: var(--table-columns);
+  gap: 0;
+  background: var(--color-bg-base);
+  border-radius: var(--radius-md);
+  border: var(--stroke-thin) solid var(--color-stroke-subtle);
+  cursor: pointer;
+  transition: background var(--duration-normal) var(--curve-easy-ease);
+}
+
+.posthub__table-row:hover {
+  background: var(--color-bg-subtle);
+}
+
+.posthub__table-cell {
+  padding: 0.875rem var(--space-l);
+  font-size: var(--font-size-200);
+  color: var(--color-fg-primary);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Select column (createPackageTable selectable mode) */
+.posthub__table-checkbox-cell {
+  justify-content: center;
+  padding-left: var(--space-mNudge);
+  padding-right: var(--space-mNudge);
+}
+
+/* ===================================
+   Prompt / Empty State Cards
+   =================================== */
+
+.posthub__prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.posthub__prompt-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xxl);
+  padding: 3rem;
+  background: var(--color-bg-base);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-16);
+  max-width: 31.25rem;
+  text-align: center;
+}
+
+.posthub__prompt-title {
+  font-size: var(--font-size-700);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  margin: 0;
+}
+
+.posthub__prompt-subtitle {
+  font-size: var(--font-size-300);
+  color: var(--color-fg-secondary);
+  margin: 0;
+}
+
+/* ===================================
+   Confirmation Cards
+   =================================== */
+
+.posthub__confirmation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xxl);
+  padding: 3rem;
+  background: var(--color-bg-base);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-16);
+  max-width: 31.25rem;
+  margin: auto;
+  text-align: center;
+}
+
+.posthub__confirmation-title {
+  font-size: var(--font-size-700);
+  font-weight: var(--font-weight-semibold);
+  color: var(--posthub-status-delivered);
+  margin: 0;
+}
+
+.posthub__confirmation-message {
+  font-size: var(--font-size-300);
+  color: var(--color-fg-secondary);
+  margin: 0;
+}
+
+/* ===================================
+   Scan Button (shared across scan routes)
+   =================================== */
+
+.posthub__scan-btn {
+  padding: 1rem 3rem;
+  font-size: var(--font-size-300);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-inverted);
+  background: var(--color-brand-primary);
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--curve-easy-ease);
+}
+
+.posthub__scan-btn:hover {
+  background: var(--color-brand-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-8);
+}
+
+/* ===================================
+   Bulk Update Bar
+   =================================== */
+
+.posthub__bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-l);
+  padding: var(--space-l) 1.25rem;
+  background: var(--color-bg-base);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-8);
+  margin-bottom: var(--space-l);
+  flex-shrink: 0;
+}
+
+.posthub__update-all-btn {
+  padding: 0.625rem var(--space-xxl);
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-inverted);
+  background: var(--color-brand-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--curve-easy-ease);
+  white-space: nowrap;
+}
+
+.posthub__update-all-btn:hover {
+  background: var(--color-brand-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-8);
+}
+
+.posthub__bulk-location {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.posthub__bulk-location-label {
+  font-size: var(--font-size-300);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+}
+
+/* ===================================
+   Hidden Textarea (scanner input)
+   =================================== */
+
+.posthub__hidden-textarea-wrapper {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.posthub__hidden-textarea {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+/* ===================================
+   Responsive
+   =================================== */
+
+@media (max-width: 768px) {
+  .posthub__page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sNudge);
+    padding: 1.25rem var(--space-l);
+  }
+  .posthub__page-subtitle { margin-left: 3rem; }
+  .posthub__table-container { padding: 0 var(--space-l) var(--space-l) var(--space-l); }
+  .posthub__prompt-content { padding: var(--space-xxxl) var(--space-xxl); }
+  .posthub__bulk-bar { flex-direction: column; align-items: stretch; }
+}

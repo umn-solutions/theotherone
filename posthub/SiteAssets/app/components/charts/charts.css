@@ -1,0 +1,258 @@
+/* Shared chart + tooltip styles */
+
+.posthub__chart-tooltip {
+  position: fixed;
+  z-index: var(--z-overlay, 1000);
+  background: rgba(20, 22, 28, 0.92);
+  color: #fff;
+  font-size: var(--font-size-100);
+  line-height: 1.35;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-8);
+  pointer-events: none;
+  max-width: 16rem;
+}
+
+.posthub__chart-tooltip__title {
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 0.125rem 0;
+}
+
+.posthub__chart-tooltip__row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.6875rem;
+}
+
+.posthub__chart-tooltip__swatch {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+}
+
+.posthub__chart-tooltip__name {
+  opacity: 0.75;
+  margin-right: auto;
+}
+
+.posthub__chart-tooltip__value {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Generic SVG host (used by every chart factory) */
+.posthub__chart-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.posthub__chart-svg text {
+  font-family: inherit;
+  font-size: 0.6875rem;
+  fill: var(--color-fg-tertiary);
+}
+
+.posthub__chart-svg .axis-line {
+  stroke: var(--color-stroke-subtle);
+  stroke-width: 1;
+}
+
+.posthub__chart-svg .grid-ring {
+  fill: none;
+  stroke: var(--color-stroke-subtle);
+  stroke-width: 1;
+}
+
+.posthub__chart-svg .focus-line {
+  stroke: var(--color-stroke-strong, var(--color-fg-tertiary));
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  pointer-events: none;
+}
+
+/* Donut */
+.posthub__chart-donut__center {
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-semibold);
+  fill: var(--color-fg-primary);
+}
+.posthub__chart-donut__center-sub {
+  font-size: 0.6875rem;
+  fill: var(--color-fg-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.posthub__chart-donut__arc {
+  cursor: pointer;
+  transition: transform var(--duration-normal) var(--curve-easy-ease);
+}
+.posthub__chart-donut__arc:hover {
+  filter: brightness(1.05);
+}
+
+/* Stacked bar */
+.posthub__chart-stacked__seg {
+  cursor: pointer;
+  transition: fill var(--duration-fast) var(--curve-easy-ease);
+}
+.posthub__chart-stacked__seg:hover {
+  filter: brightness(0.92);
+}
+.posthub__chart-stacked__label {
+  fill: #fff;
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold);
+  pointer-events: none;
+}
+
+/* Bars (grouped + horizontal) */
+.posthub__chart-bar {
+  cursor: pointer;
+  transition: fill var(--duration-fast) var(--curve-easy-ease);
+}
+.posthub__chart-bar:hover {
+  filter: brightness(0.92);
+}
+.posthub__chart-bar__value {
+  fill: var(--color-fg-secondary);
+  font-size: 0.6875rem;
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* Line / sparkline */
+.posthub__chart-line__path {
+  fill: none;
+  stroke-width: 1.75;
+}
+.posthub__chart-line__area {
+  fill-opacity: 0.18;
+  stroke: none;
+}
+.posthub__chart-line__dot {
+  pointer-events: none;
+}
+
+/* Stacked area */
+.posthub__chart-area__layer {
+  fill-opacity: 0.85;
+  stroke: rgba(255, 255, 255, 0.6);
+  stroke-width: 0.5;
+}
+
+.posthub__chart-tooltip__row--total {
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+
+/* Empty state inside chart canvas */
+.posthub__chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: var(--font-size-200);
+  color: var(--color-fg-tertiary);
+  font-style: italic;
+}
+
+/* Flow matrix (origin -> destination heatmap) */
+.posthub__flow-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-100);
+  font-variant-numeric: tabular-nums;
+  table-layout: fixed;
+}
+.posthub__flow-matrix th,
+.posthub__flow-matrix td {
+  padding: var(--space-xs) var(--space-s);
+  text-align: center;
+  border: var(--stroke-thin) solid var(--color-stroke-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.posthub__flow-matrix thead th {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-secondary);
+  background: var(--color-bg-subtle);
+}
+.posthub__flow-matrix__corner {
+  text-align: left;
+  color: var(--color-fg-tertiary);
+  font-weight: var(--font-weight-regular);
+  font-style: italic;
+}
+.posthub__flow-matrix__row-head {
+  text-align: left;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-secondary);
+  background: var(--color-bg-subtle);
+}
+.posthub__flow-matrix__diag {
+  outline: var(--stroke-thin) dashed var(--color-stroke-strong);
+  outline-offset: -2px;
+}
+.posthub__flow-matrix__total-head,
+.posthub__flow-matrix__total-row {
+  color: var(--color-fg-primary);
+}
+.posthub__flow-matrix__total-cell {
+  font-weight: var(--font-weight-semibold);
+  background: var(--color-bg-secondary);
+  color: var(--color-fg-primary);
+}
+.posthub__flow-matrix__grand {
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-primary--dark);
+}
+
+/* Generic data table (per-building indicators) */
+.posthub__data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-200);
+  font-variant-numeric: tabular-nums;
+}
+.posthub__data-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--color-bg-subtle);
+  font-size: 0.6875rem;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-fg-tertiary);
+  padding: var(--space-sNudge) var(--space-m);
+  border-bottom: var(--stroke-thin) solid var(--color-stroke-default);
+  white-space: nowrap;
+}
+.posthub__data-table tbody td,
+.posthub__data-table tbody th {
+  padding: var(--space-sNudge) var(--space-m);
+  border-bottom: var(--stroke-thin) solid var(--color-stroke-subtle);
+  color: var(--color-fg-primary);
+  font-weight: var(--font-weight-regular);
+}
+.posthub__data-table tbody tr:hover td,
+.posthub__data-table tbody tr:hover th {
+  background: var(--color-bg-subtle);
+}
+.posthub__data-table__footer td,
+.posthub__data-table__footer th {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  border-top: var(--stroke-thick) solid var(--color-stroke-default);
+  background: var(--color-bg-subtle);
+}

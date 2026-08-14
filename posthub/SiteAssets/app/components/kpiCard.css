@@ -1,0 +1,94 @@
+.posthub__kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-l) var(--space-xl);
+  background: var(--color-bg-base);
+  border: var(--stroke-thin) solid var(--color-stroke-subtle);
+  border-radius: var(--radius-md);
+  min-height: 6rem;
+  justify-content: center;
+}
+
+.posthub__kpi-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sNudge);
+}
+
+.posthub__kpi-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-md);
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-primary);
+  flex-shrink: 0;
+}
+
+.posthub__kpi-card__icon svg {
+  width: 1rem;
+  height: 1rem;
+  display: block;
+}
+
+.posthub__kpi-card__label {
+  font-size: 0.6875rem;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-fg-tertiary);
+  margin: 0;
+}
+
+.posthub__kpi-card__value {
+  font-size: 2rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  line-height: 1.1;
+  margin: 0;
+}
+
+.posthub__kpi-card__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sNudge);
+  flex-wrap: wrap;
+}
+
+.posthub__kpi-card__sublabel {
+  font-size: var(--font-size-100);
+  color: var(--color-fg-secondary);
+  margin: 0;
+}
+
+/* Period-over-period delta chip */
+.posthub__kpi-card__delta {
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  padding: 0.0625rem var(--space-xs);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+.posthub__kpi-card__delta--positive {
+  color: var(--color-success-fg);
+  background: var(--color-success-bg);
+}
+.posthub__kpi-card__delta--negative {
+  color: var(--color-danger-fg);
+  background: var(--color-danger-bg);
+}
+.posthub__kpi-card__delta--neutral {
+  color: var(--color-fg-secondary);
+  background: var(--color-bg-secondary);
+}
+
+/* Status-tinted variants (icon chip + value) */
+.posthub__kpi-card--pending     .posthub__kpi-card__value { color: var(--posthub-status-pending); }
+.posthub__kpi-card--in-transit  .posthub__kpi-card__value { color: var(--posthub-status-in-transit); }
+.posthub__kpi-card--arrived     .posthub__kpi-card__value { color: var(--posthub-status-arrived); }
+.posthub__kpi-card--delivered   .posthub__kpi-card__value { color: var(--posthub-status-delivered); }
+.posthub__kpi-card--accent      .posthub__kpi-card__value { color: var(--color-brand-primary); }

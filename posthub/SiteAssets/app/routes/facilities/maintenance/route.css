@@ -1,0 +1,116 @@
+/* MAINTENANCE - Route-specific overrides only */
+/* Shared layout uses posthub__* classes from shared.css */
+/* Action cards reuse .posthub__card* (see shared.css) */
+
+/* Scrollable body */
+.maintenance__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 var(--space-xxxl) var(--space-xxl) var(--space-xxxl);
+}
+
+/* Preview modal */
+.maintenance__modal {
+  max-width: 52rem;
+  width: 92vw;
+  padding: var(--space-xxxl);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-base);
+  box-shadow: var(--shadow-28);
+}
+
+/* Affected-items preview */
+.maintenance__preview-body {
+  display: flex;
+  flex-direction: column;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+/* Select column + 4 data columns, shared by both actions
+   (see posthub__table in shared.css) */
+.maintenance__preview-table {
+  --table-columns: 2.5rem 1.6fr 1.6fr 1.2fr 1fr;
+}
+
+.maintenance__empty {
+  padding: var(--space-xxl) 0;
+  text-align: center;
+  font-size: var(--font-size-300);
+  color: var(--color-fg-tertiary);
+}
+
+/* Run progress bar */
+.maintenance__progress-track {
+  width: 100%;
+  height: 0.625rem;
+  margin: var(--space-l) 0;
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.maintenance__progress-fill {
+  width: 0;
+  height: 100%;
+  background: var(--color-brand-primary);
+  border-radius: inherit;
+  transition: width var(--duration-normal) var(--curve-easy-ease);
+}
+
+.maintenance__modal-title {
+  font-size: 1.375rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  margin: 0 0 var(--space-l) 0;
+}
+
+.maintenance__modal-text {
+  font-size: var(--font-size-300);
+  color: var(--color-fg-secondary);
+  margin: 0 0 var(--space-l) 0;
+  line-height: 1.5;
+}
+
+.maintenance__modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-l);
+}
+
+.maintenance__modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.625rem;
+  margin-top: var(--space-sNudge);
+}
+
+.maintenance__modal-run-btn {
+  padding: 0.625rem var(--space-xxl);
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-inverted);
+  background: var(--color-brand-primary);
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--curve-easy-ease);
+}
+
+.maintenance__modal-run-btn:hover {
+  background: var(--color-brand-hover);
+}
+
+.maintenance__modal-cancel-btn {
+  padding: 0.625rem var(--space-xxl);
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--curve-easy-ease);
+}
+
+@media (max-width: 768px) {
+  .maintenance__body { padding: 0 var(--space-l) var(--space-l) var(--space-l); }
+  .maintenance__modal { padding: var(--space-xxl); }
+}

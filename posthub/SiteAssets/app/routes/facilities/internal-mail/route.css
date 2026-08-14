@@ -1,0 +1,201 @@
+/* INTERNAL MAIL HUB - Route-specific overrides only */
+/* Shared layout uses posthub__* classes from shared.css */
+
+/* Page wrapper - centered */
+.internal-mail__wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  background: var(--color-bg-secondary);
+  padding: var(--space-xxl) var(--space-xxxl);
+  overflow-y: auto;
+}
+
+.internal-mail__wrapper > * {
+  width: 100%;
+  max-width: 75rem;
+}
+
+.internal-mail__body {
+  display: flex;
+  place-content: center;
+  place-items: start;
+}
+
+/* Page header */
+.internal-mail__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sNudge);
+  margin-bottom: var(--space-l);
+}
+
+/* 4-column card grid */
+.internal-mail__cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-xxl);
+}
+
+.internal-mail__card {
+  background: var(--color-bg-base);
+  padding: var(--space-xxxl) var(--space-xxl);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-mNudge);
+  transition: all 0.3s ease;
+}
+
+.internal-mail__card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-16);
+}
+
+.internal-mail__card-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--color-brand-primary);
+  color: var(--color-fg-inverted);
+  flex-shrink: 0;
+}
+
+.internal-mail__card-step svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: currentColor;
+}
+
+.internal-mail__card-title {
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  margin: 0;
+}
+
+.internal-mail__card-description {
+  font-size: var(--font-size-200);
+  color: var(--color-fg-secondary);
+  margin: 0;
+  flex: 1;
+}
+
+.internal-mail__card-btn {
+  padding: 0.625rem var(--space-xxl);
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-inverted);
+  background: var(--color-brand-primary);
+  border: none;
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--curve-easy-ease);
+  text-align: center;
+  margin-top: 0.25rem;
+}
+
+.internal-mail__card-btn:hover {
+  background: var(--color-brand-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-8);
+}
+
+.internal-mail__utility-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: var(--space-xxl);
+  margin-bottom: var(--space-l);
+}
+
+.internal-mail__utility-section > :first-child { grid-column: span 2; }
+
+/* Disabled card -- visual placeholder for unimplemented features */
+.internal-mail__card--disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.internal-mail__card--disabled .internal-mail__card-btn {
+  display: none;
+}
+
+.internal-mail__card--disabled .internal-mail__card-coming-soon {
+  font-size: var(--font-size-200);
+  color: var(--color-fg-tertiary);
+  font-style: italic;
+  margin-top: 0.25rem;
+}
+
+/* Location selector modal */
+.internal-mail__modal-card {
+  background: var(--color-bg-base);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-28);
+  padding: var(--space-xxxl);
+  max-width: 32rem;
+  width: 100%;
+}
+
+.internal-mail__modal-title {
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  margin: 0 0 var(--space-s) 0;
+}
+
+.internal-mail__modal-intro {
+  font-size: var(--font-size-200);
+  color: var(--color-fg-secondary);
+  margin: 0 0 var(--space-xl) 0;
+  line-height: 1.5;
+}
+
+.internal-mail__badge-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-mNudge);
+}
+
+.internal-mail__badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-l) var(--space-mNudge);
+  background: var(--color-bg-secondary);
+  border: 2px solid transparent;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--curve-easy-ease);
+}
+
+.internal-mail__badge:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-base));
+  box-shadow: var(--shadow-8);
+}
+
+.internal-mail__badge-label {
+  font-size: var(--font-size-300);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+}
+
+@media (max-width: 768px) {
+  .internal-mail__wrapper { padding: 1.25rem var(--space-l); }
+  .internal-mail__cards { grid-template-columns: 1fr; }
+  .internal-mail__card { padding: var(--space-xxl); }
+  .internal-mail__card-btn { width: 100%; }
+  .internal-mail__utility-section { grid-template-columns: 1fr; }
+  .internal-mail__utility-section > :first-child { grid-column: span 1; }
+  .internal-mail__badge-grid { grid-template-columns: 1fr; }
+}

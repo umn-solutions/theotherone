@@ -1,0 +1,248 @@
+/* SEND MAIL - Route-specific overrides only */
+/* Shared layout uses posthub__* classes from shared.css */
+
+/* Page wrapper - centered content */
+.send-mail__wrapper {
+  display: flex;
+  flex-direction: column;
+  place-items: center;
+  place-content: center;
+  background: var(--color-bg-secondary);
+  padding: var(--space-xxl) var(--space-xxxl);
+  padding-bottom: 7.5%;
+  overflow-y: auto;
+  position: relative;
+  height: 100%;
+
+}
+
+.send-mail__wrapper > * {
+  width: 100%;
+  max-width: 75rem;
+}
+
+.send-mail__body {
+  display: flex;
+  place-content: center;
+  place-items: center;
+}
+
+/* Page header */
+.send-mail__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sNudge);
+  margin-bottom: var(--space-xxxl);
+}
+
+/* Two-column layout */
+.send-mail__content {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  grid-template-areas: "form info";
+  gap: var(--space-xxxl);
+  align-items: stretch;
+}
+
+/* Left column - step cards */
+.send-mail__info-section {
+  grid-area: info;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+}
+
+.send-mail__step-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-l);
+  background: var(--color-bg-base);
+  border-radius: var(--radius-xl);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-8);
+}
+
+.send-mail__step-card--link {
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--curve-easy-ease);
+}
+
+.send-mail__step-card--link:hover {
+  box-shadow: var(--shadow-16);
+  transform: translateY(-2px);
+}
+
+.send-mail__step-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--color-brand-selected);
+  color: var(--color-brand-active);
+  font-size: 1.375rem;
+}
+
+.send-mail__step-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.send-mail__step-card-title {
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  margin: 0;
+}
+
+.send-mail__step-card-text {
+  font-size: var(--font-size-200);
+  color: var(--color-fg-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Locations modal */
+.send-mail__locations-modal {
+  background: var(--color-bg-base);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xxl);
+  min-width: 25rem;
+  box-shadow: var(--shadow-28);
+}
+
+.send-mail__locations-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: var(--space-sNudge);
+}
+
+.send-mail__locations-title {
+  font-size: 1.125rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  margin: 0;
+}
+
+.send-mail__locations-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--color-fg-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: all var(--duration-normal) var(--curve-easy-ease);
+}
+
+.send-mail__locations-close:hover {
+  background: var(--color-bg-subtle);
+  color: var(--color-fg-primary);
+}
+
+.send-mail__locations-intro {
+  font-size: var(--font-size-200);
+  color: var(--color-fg-secondary);
+  line-height: 1.5;
+  margin: 0 0 var(--space-l) 0;
+}
+
+.send-mail__locations-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5em;
+}
+
+.send-mail__locations-item {
+  display: flex;
+  align-items: center;
+  padding: 0.625rem 0.75rem;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg-primary);
+  margin: 0;
+}
+
+/* Right column - form */
+.send-mail__form-section {
+  grid-area: form;
+  background: var(--color-bg-base);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xxl);
+  box-shadow: var(--shadow-8);
+  outline: 2px solid transparent;
+  outline-offset: 4px;
+  transition: outline-color 0.5s ease;
+}
+
+.send-mail__form-section--highlight {
+  outline-color: var(--color-brand-primary);
+}
+
+.send-mail__form-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.send-mail__form-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-mNudge);
+  margin-bottom: var(--space-sNudge);
+}
+
+.send-mail__form-title {
+  font-size: 1.125rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+}
+
+.send-mail__form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sNudge);
+}
+
+.send-mail__form-section .form-control { width: 100%; }
+.send-mail__form-section .nofbiz__button { width: 100%; margin-top: var(--space-sNudge); }
+
+/* Success card */
+.send-mail__content > .send-mail__step-card {
+  grid-column: 1 / -1;
+  justify-self: center;
+  max-width: 32.5rem;
+}
+
+.send-mail__success-actions {
+  display: flex;
+  gap: var(--space-mNudge);
+  margin-top: var(--space-mNudge);
+}
+
+@media (max-width: 1024px) {
+  .send-mail__content { grid-template-columns: 1fr; }
+}
+
+/* Loader covers full viewport (including navbar) */
+.send-mail__wrapper > .nofbiz__loader {
+  position: fixed;
+}
+
+@media (max-width: 768px) {
+  .send-mail__wrapper { padding: 1.25rem var(--space-l); }
+  .send-mail__form-section { padding: 1.25rem; }
+}
