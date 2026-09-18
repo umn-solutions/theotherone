@@ -34,11 +34,17 @@ interface ComboBoxProps extends FormControlProps {
     /** When true, allows the user to create new options by typing text that doesn't match existing options. @default false */
     allowCreate?: boolean;
     /**
-     * When provided, this replaces the default Fuse.js filter.
+     * When provided, this replaces the default Fuse.js filter. May return a Promise for async filtering.
      * @param search The current string input from the searchbar.
-     * @returns Filtered array of options.
+     * @returns Filtered array of options, or a Promise resolving to one.
      */
-    filteringFunction?: (search: string) => ComboBoxOptionProps[];
+    filteringFunction?: (search: string) => ComboBoxOptionProps[] | Promise<ComboBoxOptionProps[]>;
+    /** Text shown in the dropdown while an async filter is running. @default "Searching..." */
+    loadingText?: string;
+    /** Text shown in the dropdown when no results match. @default "No results found" */
+    noResultsText?: string;
+    /** Text shown in the dropdown when an async filter throws. @default "Search failed" */
+    errorText?: string;
 }
 declare class ComboBox extends FormControl<ComboBoxOptionProps | ComboBoxOptionProps[]> {
     protected _dataset: ComboBoxOptionProps[];
@@ -56,6 +62,12 @@ declare class ComboBox extends FormControl<ComboBoxOptionProps | ComboBoxOptionP
     private _allowCreate;
     private _focusedIndex;
     private _pendingTimeouts;
+    protected _isLoading: boolean;
+    protected _hasError: boolean;
+    protected _searchSeq: number;
+    private _loadingText;
+    private _noResultsText;
+    private _errorText;
     constructor(field: FormField<ComboBoxOptionProps | ComboBoxOptionProps[]>, dataset: ComboBoxDataset, props?: ComboBoxProps);
     private _normalizeDataset;
     private _getFuseInstance;
@@ -70,6 +82,16 @@ declare class ComboBox extends FormControl<ComboBoxOptionProps | ComboBoxOptionP
     private _createOption;
     private _createOptionsList;
     private _createCreateOption;
+    /** Builds the inner content of the dropdown list panel. */
+    protected _createDropdownBody(): string;
+    /** Returns the empty-state message string (HTML-safe). PeoplePicker overrides for context-aware hints. */
+    protected _emptyMessage(): string;
+    /**
+     * Sets the async-loading state and updates the dropdown body.
+     * Idempotent -- calling with the same value is a no-op.
+     * Does NOT touch `form-control--loading`; the input stays typable.
+     */
+    protected _setLoading(loading: boolean): void;
     protected _refreshDropdownList(): void;
     private _updateCreateOption;
     private _refreshChevron;
@@ -99,7 +121,7 @@ declare class ComboBox extends FormControl<ComboBoxOptionProps | ComboBoxOptionP
     toString(): string;
     get dataset(): ComboBoxOptionProps[];
     set dataset(data: ComboBoxDataset);
-    set filteringFunction(callback: (search: string) => ComboBoxOptionProps[]);
+    set filteringFunction(callback: (search: string) => ComboBoxOptionProps[] | Promise<ComboBoxOptionProps[]>);
     render(): void;
     remove(): void;
 }
@@ -648,16 +670,27 @@ interface ButtonProps extends FormControlProps {
     squared?: boolean;
     /** */
     onClickHandler: (e: MouseEvent) => void;
+    /**
+     * Throttles the click callback to prevent accidental double-clicks / rapid repeat clicks.
+     * `true` -> enabled at the default 300ms window. A number -> enabled with that window in ms.
+     * `false` -> disabled (raw callback). Leading-edge: the first click fires immediately,
+     * further clicks within the window are ignored. The window persists across re-renders.
+     * @default true
+     */
+    throttle?: boolean | number;
 }
 declare class Button extends FormControl<string> {
     type: ButtonProps['type'];
     variant: ButtonProps['variant'];
     isOutlined: boolean;
     isSquared: boolean;
+    private _clickThrottleMs;
+    private _throttledClick;
     constructor(children: HTMDNode, props: ButtonProps);
     get modifierClasses(): string;
     toString(): string;
     set onClickHandler(callback: (e: MouseEvent) => void);
+    remove(): void;
 }
 
 interface PeopleSearchResultData {
@@ -866,6 +899,17 @@ declare class CurrentUser {
      * keyed on siteUserId) return an empty list for the authenticated user.
      * Email is a stable, AD-authoritative identifier that is not affected by
      * duplicate UIL entries.
+     *
+     * For the authenticated user (when `options.targetUser` is not set), group
+     * resolution uses `_spPageContextInfo.userEmail` as the email key, falling
+     * back to the email returned by {@link getFullUserDetails} only if the session
+     * email is absent. The session email comes from the authenticated session and
+     * is immune to ghost UIL entries. When `options.targetUser` IS set, the
+     * session email belongs to the authenticated user, not the target, so
+     * `data.email` (from the target's profile) is used exclusively.
+     *
+     * The email stored in `#data` (accessible via `get('email')`) is always the
+     * value returned by {@link getFullUserDetails} and is not altered here.
      *
      * @param groupHierarchy - Optional ordered list of groups from lowest to
      *   highest privilege. The array is walked from last index to first; the
@@ -1130,6 +1174,7 @@ declare class PeoplePicker extends ComboBox {
     constructor(field: FormField<ComboBoxOptionProps | ComboBoxOptionProps[]>, props: PeoplePickerProps);
     private _executeSearch;
     protected _onSearchEventListeners(): void;
+    protected _emptyMessage(): string;
     remove(): void;
     /**
      * Searches Active Directory for the given identifier and, if a unique match

@@ -1,0 +1,138 @@
+/* REGISTER EXTERNAL MAIL - Route-specific overrides only */
+/* Shared layout uses posthub__* classes from shared.css */
+/* NOTE: kept identical to register-tracked/route.css -- both routes reuse the
+   same createRegisterForm builder; route CSS is auto-loaded per route so a shared
+   file is not possible without a StyleResource registration. */
+
+.external-mail-form__wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  background: var(--color-bg-secondary);
+  padding: var(--space-xxl) var(--space-xxxl);
+  overflow-y: auto;
+}
+
+.external-mail-form__wrapper > * {
+  width: 100%;
+  max-width: 45rem;
+}
+
+.external-mail-form__body {
+  display: flex;
+  place-content: center;
+}
+
+.external-mail-form__content {
+  width: 100%;
+}
+
+.external-mail-form__form-section {
+  background: var(--color-bg-base);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xxl);
+  box-shadow: var(--shadow-8);
+}
+
+.external-mail-form__form-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.external-mail-form__form-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-mNudge);
+  margin-bottom: var(--space-sNudge);
+}
+
+.external-mail-form__form-title {
+  font-size: 1.125rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+}
+
+.external-mail-form__form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sNudge);
+}
+
+.external-mail-form__form-section .form-control,
+.external-mail-form__form-section .nofbiz__combobox,
+.external-mail-form__form-section .nofbiz__textarea {
+  width: 100%;
+}
+
+.external-mail-form__form-content > .nofbiz__button {
+  width: 100%;
+  margin-top: var(--space-sNudge);
+}
+
+.external-mail-form__validate-row {
+  display: flex;
+  gap: var(--space-mNudge);
+  align-items: center;
+}
+
+.external-mail-form__validate-row .form-control,
+.external-mail-form__validate-row .nofbiz__textinput {
+  flex: 1;
+}
+
+/* Success card */
+.external-mail-form__success-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-l);
+  background: var(--color-bg-base);
+  border-radius: var(--radius-xl);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-8);
+}
+
+.external-mail-form__success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--color-brand-selected);
+  color: var(--color-brand-active);
+  font-size: 1.375rem;
+}
+
+.external-mail-form__success-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.external-mail-form__success-title {
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  margin: 0;
+}
+
+.external-mail-form__success-text {
+  font-size: var(--font-size-200);
+  color: var(--color-fg-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.external-mail-form__success-actions {
+  display: flex;
+  gap: var(--space-mNudge);
+  margin-top: var(--space-mNudge);
+}
+
+@media (max-width: 768px) {
+  .external-mail-form__wrapper { padding: 1.25rem var(--space-l); }
+  .external-mail-form__form-section { padding: 1.25rem; }
+}

@@ -1,0 +1,104 @@
+/* REGISTER BULK MAIL - Route-specific overrides only */
+/* Shared layout uses posthub__* classes from shared.css */
+
+.external-mail-bulk__wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  background: var(--color-bg-secondary);
+  padding: var(--space-xxl) var(--space-xxxl);
+  overflow-y: auto;
+}
+
+.external-mail-bulk__wrapper > * {
+  width: 100%;
+  max-width: 75rem;
+}
+
+.external-mail-bulk__body {
+  display: flex;
+  place-content: center;
+}
+
+.external-mail-bulk__panel {
+  width: 100%;
+  background: var(--color-bg-base);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xxl);
+  box-shadow: var(--shadow-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-l);
+}
+
+/* Editable grid: Category | Title | Description | From | Where | remove */
+.external-mail-bulk__grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1.4fr 1.8fr 1.4fr 1.2fr 2.5rem;
+  gap: var(--space-mNudge);
+  align-items: center;
+}
+
+.external-mail-bulk__grid-header {
+  display: contents;
+}
+
+.external-mail-bulk__grid-body {
+  display: contents;
+}
+
+.external-mail-bulk__grid-row {
+  display: contents;
+}
+
+.external-mail-bulk__grid-label {
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg-secondary);
+  padding-bottom: var(--space-sNudge);
+  border-bottom: var(--stroke-thin) solid var(--color-stroke-subtle);
+}
+
+.external-mail-bulk__grid .form-control,
+.external-mail-bulk__grid .nofbiz__combobox,
+.external-mail-bulk__grid .nofbiz__textinput {
+  width: 100%;
+}
+
+.external-mail-bulk__remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  color: var(--color-fg-secondary);
+}
+
+.external-mail-bulk__remove-btn:hover {
+  color: var(--color-status-danger, #c0392b);
+}
+
+.external-mail-bulk__toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-mNudge);
+  padding-top: var(--space-mNudge);
+  border-top: var(--stroke-thin) solid var(--color-stroke-subtle);
+}
+
+@media (max-width: 768px) {
+  .external-mail-bulk__wrapper { padding: 1.25rem var(--space-l); }
+  .external-mail-bulk__panel { padding: 1.25rem; }
+  .external-mail-bulk__grid { grid-template-columns: 1fr; }
+  .external-mail-bulk__grid-header { display: none; }
+  .external-mail-bulk__grid-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-sNudge);
+    padding: var(--space-mNudge) 0;
+    border-bottom: var(--stroke-thin) solid var(--color-stroke-subtle);
+  }
+  .external-mail-bulk__toolbar { flex-direction: column; }
+}

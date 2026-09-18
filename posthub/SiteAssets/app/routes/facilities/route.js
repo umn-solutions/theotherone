@@ -61,7 +61,7 @@ export default defineRoute((config) => {
 				{ class: "posthub__card" },
 			),
 
-			// External Mail Card (not yet implemented)
+			// External Mail Card
 			new Container(
 				[
 					new Text("External Mail", {
@@ -72,12 +72,11 @@ export default defineRoute((config) => {
 						type: "p",
 						class: "posthub__card-description",
 					}),
-					new Text("Coming soon", {
-						type: "span",
-						class: "posthub__card-btn posthub__card-btn--disabled",
+					new LinkButton("Open", "facilities/external-mail", {
+						class: "posthub__card-btn",
 					}),
 				],
-				{ class: "posthub__card posthub__card--disabled" },
+				{ class: "posthub__card" },
 			),
 
 			// Reports Card (not yet implemented)

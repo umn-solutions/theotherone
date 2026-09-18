@@ -41,6 +41,12 @@ new Router([
 	"facilities/internal-mail/delivery", // Route: /facilities/internal-mail/delivery
 	"facilities/internal-mail/search-package", // Route: /facilities/internal-mail/search-package
 	"facilities/internal-mail/reprint-labels", // Route: /facilities/internal-mail/reprint-labels
+	"facilities/external-mail", // Route: /facilities/external-mail
+	"facilities/external-mail/register-bulk", // Route: /facilities/external-mail/register-bulk
+	"facilities/external-mail/register-tracked", // Route: /facilities/external-mail/register-tracked
+	"facilities/external-mail/register-registered", // Route: /facilities/external-mail/register-registered
+	"facilities/external-mail/tracked", // Route: /facilities/external-mail/tracked
+	"facilities/external-mail/search", // Route: /facilities/external-mail/search
 	"facilities/manage-locations", // Route: /facilities/manage-locations
 	"facilities/reports", // Route: /facilities/reports
 	"facilities/maintenance", // Route: /facilities/maintenance

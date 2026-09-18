@@ -1,0 +1,62 @@
+/* SEARCH EXTERNAL MAIL - Route-specific overrides only */
+/* Shared layout uses posthub__* classes from shared.css */
+
+/* Table grid: 8 columns -- Received | Status | Location | Destination | Sender | Recipient | Tracking | Category */
+.external-mail-search__table { --table-columns: 0.9fr 0.8fr 1fr 1fr 1.1fr 1.1fr 1.5fr 0.9fr; }
+
+.external-mail-search__body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Filter sidebar */
+.external-mail-search__sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-l);
+  min-width: 18rem;
+  max-width: 18rem;
+  padding: var(--space-l) var(--space-xxl);
+  border-right: var(--stroke-thin) solid var(--color-stroke-subtle);
+  background: var(--color-bg-base);
+  overflow-y: auto;
+  flex-shrink: 0;
+  z-index: 5;
+}
+
+.external-mail-search__sidebar .nofbiz__combobox,
+.external-mail-search__sidebar .nofbiz__daterangeinput {
+  width: 100%;
+}
+
+/* Results area */
+.external-mail-search__results {
+  flex: 1;
+  overflow: hidden;
+  padding: var(--space-l) var(--space-xxl) var(--space-xxl) var(--space-xxl);
+  display: flex;
+  flex-direction: column;
+}
+
+.external-mail-search__result-count {
+  font-size: var(--font-size-200);
+  color: var(--color-fg-secondary);
+  margin: 0 0 var(--space-mNudge) 0;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .external-mail-search__body { flex-direction: column; }
+  .external-mail-search__sidebar {
+    min-width: 0;
+    max-width: none;
+    border-right: none;
+    border-bottom: var(--stroke-thin) solid var(--color-stroke-subtle);
+    max-height: 18.75rem;
+    padding: var(--space-l);
+  }
+  .external-mail-search__results { padding: 0 var(--space-l) var(--space-l) var(--space-l); }
+  .external-mail-search__table { --table-columns: 1fr; }
+}

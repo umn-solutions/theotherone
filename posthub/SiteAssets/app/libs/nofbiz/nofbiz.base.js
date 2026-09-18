@@ -1,4 +1,4 @@
-const {c: cloneDeep, u: uniqueId, f: forEach, s: some, m: map, d: debounce, r: reduce, o: orderBy} = await import("./dependencies/lodash.js").catch(() => {
+const {c: cloneDeep, u: uniqueId, f: forEach, s: some, m: map, t: throttle, d: debounce, r: reduce, o: orderBy} = await import("./dependencies/lodash.js").catch(() => {
     throw new Error("[SPARC] Required vendor file not found: dependencies/lodash.js");
 });
 
@@ -1420,11 +1420,20 @@ Toast._defaults = {
 class Button extends FormControl {
     constructor(children, props) {
         super("button", props);
+        this._throttledClick = null;
         this._children = children;
         this.type = props?.type || "button";
         this.variant = props?.variant || "primary";
         this.isOutlined = props?.isOutlined || false;
         this.isSquared = props?.squared || false;
+        const throttleProp = props?.throttle;
+        if (throttleProp === false) {
+            this._clickThrottleMs = null;
+        } else if (typeof throttleProp === "number") {
+            this._clickThrottleMs = throttleProp;
+        } else {
+            this._clickThrottleMs = 300;
+        }
         this.onClickHandler = props.onClickHandler;
     }
     get modifierClasses() {
@@ -1435,10 +1444,23 @@ class Button extends FormControl {
         return `${super.modifierClasses} ${mods.join(" ")}`;
     }
     toString() {
-        return `<button \n\t\t\t\t\ttitle="${escapeAttr(this.title)}"\n\t\t\t\t\tid="${this.id}"\n\t\t\t\t\tclass="${this.class} ${this.modifierClasses}"\n\t\t\t\t\ttype="${this.type}"\n\t\t\t\t\t${this.isDisabled || this.isLoading ? "disabled" : ""}\n\t\t\t\t/>`;
+        return `<button\n\t\t\t\t\ttitle="${escapeAttr(this.title)}"\n\t\t\t\t\tid="${this.id}"\n\t\t\t\t\tclass="${this.class} ${this.modifierClasses}"\n\t\t\t\t\ttype="${this.type}"\n\t\t\t\t\t${this.isDisabled || this.isLoading ? "disabled" : ""}\n\t\t\t\t/>`;
     }
     set onClickHandler(callback) {
-        this.setEventHandler("click", callback);
+        this._throttledClick?.cancel();
+        this._throttledClick = null;
+        if (typeof callback === "function" && this._clickThrottleMs !== null) {
+            this._throttledClick = throttle(callback, this._clickThrottleMs, {
+                trailing: false
+            });
+            this.setEventHandler("click", this._throttledClick);
+        } else {
+            this.setEventHandler("click", callback);
+        }
+    }
+    remove() {
+        this._throttledClick?.cancel();
+        super.remove();
     }
 }
 
@@ -1448,6 +1470,9 @@ class ComboBox extends FormControl {
         this._fuseInstance = null;
         this._focusedIndex = -1;
         this._pendingTimeouts = new Set;
+        this._isLoading = false;
+        this._hasError = false;
+        this._searchSeq = 0;
         this._explicitlyDisabled = props?.isDisabled ?? false;
         this._dataset = this._normalizeDataset(dataset);
         this._filteredDataset = this._dataset;
@@ -1460,6 +1485,9 @@ class ComboBox extends FormControl {
         this._returnFullDataset = props?.returnFullDataset ?? false;
         this._filterFn = props?.filteringFunction ?? (search => this._defaultFilteringFunction(search));
         this._allowCreate = props?.allowCreate ?? false;
+        this._loadingText = props?.loadingText ?? "Searching...";
+        this._noResultsText = props?.noResultsText ?? "No results found";
+        this._errorText = props?.errorText ?? "Search failed";
         this._disableOnEmptyDataset();
         this._syncDatasetFromField();
         const preChecked = this._dataset.filter(e => e.checked);
@@ -1534,7 +1562,7 @@ class ComboBox extends FormControl {
     _createDropdown() {
         const listboxId = `${this.id}-listbox`;
         const multiAttr = this._allowMultiple ? ' aria-multiselectable="true"' : "";
-        return `<div\n      class="${this.topClassBEM}__dropdown"\n      style="display:none"\n    >\n      ${this._createCreateOption()}\n      <div\n        class="${this.topClassBEM}__dropdown__list"\n        role="listbox"\n        id="${listboxId}"\n        ${multiAttr}\n      >\n        ${this._createOptionsList()}\n      </div>\n      ${this._allowMultiple ? `<button class="${this.topClassBEM}__clear-btn">${this._clearText}</button>` : ""}\n    </div>`;
+        return `<div\n      class="${this.topClassBEM}__dropdown"\n      style="display:none"\n    >\n      ${this._createCreateOption()}\n      <div\n        class="${this.topClassBEM}__dropdown__list"\n        role="listbox"\n        id="${listboxId}"\n        ${multiAttr}\n      >\n        ${this._createDropdownBody()}\n      </div>\n      ${this._allowMultiple ? `<button class="${this.topClassBEM}__clear-btn">${this._clearText}</button>` : ""}\n    </div>`;
     }
     _createOption(option, index) {
         const optId = `${this.id}-opt-${index}`;
@@ -1549,10 +1577,47 @@ class ComboBox extends FormControl {
         if (!this._allowCreate) return "";
         return `<div class="${this.topClassBEM}__create-option" style="display:none">\n      <span class="${this.topClassBEM}__create-option__icon">${getIcon("add-line")}</span>\n      <span class="${this.topClassBEM}__create-option__text"></span>\n    </div>`;
     }
+    _createDropdownBody() {
+        if (this._hasError) {
+            return `<div class="${this.topClassBEM}__status-row ${this.topClassBEM}__status-row--error">${escapeHtml(this._errorText)}</div>`;
+        }
+        if (this._isLoading) {
+            const loadingRow = `<div class="${this.topClassBEM}__status-row ${this.topClassBEM}__status-row--loading"><span class="${this.topClassBEM}__status-row__spinner">${getIcon("loader-line")}</span><span>${escapeHtml(this._loadingText)}</span></div>`;
+            if (this._filteredDataset.length > 0) {
+                return loadingRow + this._createOptionsList();
+            }
+            return loadingRow;
+        }
+        if (this._filteredDataset.length === 0) {
+            return `<div class="${this.topClassBEM}__status-row ${this.topClassBEM}__status-row--empty">${this._emptyMessage()}</div>`;
+        }
+        return this._createOptionsList();
+    }
+    _emptyMessage() {
+        return escapeHtml(this._noResultsText);
+    }
+    _setLoading(loading) {
+        if (loading === this._isLoading) return;
+        this._isLoading = loading;
+        if (loading) {
+            this._hasError = false;
+            if (!this._isDropdownOpen) this._openDropdown();
+        }
+        this._refreshDropdownList();
+    }
     _refreshDropdownList() {
-        this.instance?.find(`.${this.topClassBEM}__dropdown__list`).html(this._createOptionsList());
-        this._bindOptionClickHandlers();
-        this._bindKeyboardNavigation();
+        const listEl = this.instance?.find(`.${this.topClassBEM}__dropdown__list`);
+        if (!listEl) return;
+        listEl.html(this._createDropdownBody());
+        if (this._isLoading && this._filteredDataset.length > 0) {
+            listEl.addClass(`${this.topClassBEM}__dropdown__list--refetching`);
+        } else {
+            listEl.removeClass(`${this.topClassBEM}__dropdown__list--refetching`);
+        }
+        if (!this._isLoading && !this._hasError && this._filteredDataset.length > 0) {
+            this._bindOptionClickHandlers();
+            this._bindKeyboardNavigation();
+        }
         this._updateCreateOption();
     }
     _updateCreateOption() {
@@ -1789,17 +1854,43 @@ class ComboBox extends FormControl {
     }
     _onSearchEventListeners() {
         const input = this.instance?.find(`.${this.topClassBEM}__searchbar input`);
-        input?.on("keyup", e => {
+        input?.on("keyup", async e => {
             const event = e.originalEvent;
             if (!event) return;
             if (!event.key.match(/^[\w\s]$/) && event.key !== "Backspace" && event.key !== "Delete") return;
             const value = input.val()?.toString() || "";
-            this._filteredDataset = this._filterFn(value);
-            if (this._filteredDataset.length === 0) {
-                this._filteredDataset = this._dataset;
+            this._hasError = false;
+            const result = this._filterFn(value);
+            if (result && typeof result.then === "function") {
+                const seq = ++this._searchSeq;
+                this._setLoading(true);
+                try {
+                    const opts = await result;
+                    if (!this.isAlive || seq !== this._searchSeq) return;
+                    this._filteredDataset = opts;
+                } catch (err) {
+                    if (!this.isAlive || seq !== this._searchSeq) return;
+                    console.error("[ComboBox] async filter failed", {
+                        value: value,
+                        err: err
+                    });
+                    this._filteredDataset = [];
+                    this._hasError = true;
+                } finally {
+                    if (this.isAlive && seq === this._searchSeq) {
+                        this._isLoading = false;
+                        this._focusedIndex = -1;
+                        this._refreshDropdownList();
+                    }
+                }
+            } else {
+                this._filteredDataset = result;
+                if (result.length === 0) {
+                    this._filteredDataset = this._dataset;
+                }
+                this._focusedIndex = -1;
+                this._refreshDropdownList();
             }
-            this._focusedIndex = -1;
-            this._refreshDropdownList();
         });
     }
     _bindBlurHandler() {
@@ -2269,8 +2360,10 @@ class CurrentUser {
             const siteApi = new SiteApi;
             const loginName = options?.targetUser ?? _spPageContextInfo.userLoginName;
             const data = await getFullUserDetails(loginName, siteApi);
+            const isCurrentUser = !options?.targetUser;
+            const groupEmail = isCurrentUser ? _spPageContextInfo.userEmail || data.email : data.email;
             __classPrivateFieldSet(this, _CurrentUser_data, data, "f");
-            __classPrivateFieldSet(this, _CurrentUser_group, groupHierarchy.length ? await __classPrivateFieldGet(this, _CurrentUser_instances, "m", _CurrentUser_resolveGroupByEmail).call(this, groupHierarchy, data.email, siteApi) : null, "f");
+            __classPrivateFieldSet(this, _CurrentUser_group, groupHierarchy.length ? await __classPrivateFieldGet(this, _CurrentUser_instances, "m", _CurrentUser_resolveGroupByEmail).call(this, groupHierarchy, groupEmail, siteApi) : null, "f");
             __classPrivateFieldSet(this, _CurrentUser_initialized, true, "f");
             return this;
         } catch (error) {
@@ -2320,8 +2413,8 @@ class CurrentUser {
 _a$3 = CurrentUser, _CurrentUser_data = new WeakMap, _CurrentUser_group = new WeakMap, 
 _CurrentUser_initialized = new WeakMap, _CurrentUser_instances = new WeakSet, _CurrentUser_resolveGroupByEmail = async function _CurrentUser_resolveGroupByEmail(hierarchy, email, siteApi) {
     if (!email) {
-        const ctxEmail = _spPageContextInfo?.userEmail;
-        if (!ctxEmail || typeof ctxEmail !== "string") {
+        const ctxEmail = _spPageContextInfo.userEmail;
+        if (!ctxEmail) {
             console.warn("[CurrentUser] no email available for access resolution -- group hierarchy will not be applied");
             return null;
         }
@@ -3302,10 +3395,11 @@ class PeoplePicker extends ComboBox {
         this._debouncedSearch = debounce(query => this._executeSearch(query), debounceMs ?? 300);
     }
     async _executeSearch(query) {
-        this.instance?.addClass("form-control--loading");
+        const seq = ++this._searchSeq;
+        this._setLoading(true);
         try {
             const results = await searchUsers(query, this._searchOptions);
-            if (!this.isAlive) return;
+            if (!this.isAlive || seq !== this._searchSeq) return;
             this._lastSearchResults = results;
             const options = results.reduce((acc, r) => {
                 if (!r.EntityData?.Email || !r.DisplayText) {
@@ -3327,10 +3421,17 @@ class PeoplePicker extends ComboBox {
                 this._dataset = options;
             }
             this._filteredDataset = this._dataset;
-            this._refreshDropdownList();
+        } catch (err) {
+            if (!this.isAlive || seq !== this._searchSeq) return;
+            console.error("[PeoplePicker] user search failed", {
+                query: query,
+                err: err
+            });
+            this._hasError = true;
         } finally {
-            if (this.isAlive) {
-                this.instance?.removeClass("form-control--loading");
+            if (this.isAlive && seq === this._searchSeq) {
+                this._isLoading = false;
+                this._refreshDropdownList();
             }
         }
     }
@@ -3341,6 +3442,7 @@ class PeoplePicker extends ComboBox {
             if (!event?.key.match(/^[\w\s]$/) && event?.key !== "Backspace" && event?.key !== "Delete") return;
             const value = input.val()?.toString() || "";
             if (value.length >= this._minimumCharacters) {
+                this._setLoading(true);
                 this._debouncedSearch(value);
             } else {
                 this._debouncedSearch.cancel();
@@ -3352,9 +3454,17 @@ class PeoplePicker extends ComboBox {
                     this._dataset = [];
                     this._filteredDataset = [];
                 }
+                this._isLoading = false;
                 this._refreshDropdownList();
             }
         });
+    }
+    _emptyMessage() {
+        const input = this.instance?.find(`.${this.topClassBEM}__searchbar__input`);
+        const len = input?.val()?.toString().length ?? 0;
+        if (len === 0) return escapeHtml("Type to search people");
+        if (len < this._minimumCharacters) return escapeHtml(`Type at least ${this._minimumCharacters} characters`);
+        return super._emptyMessage();
     }
     remove() {
         this._debouncedSearch.cancel();
@@ -3362,7 +3472,7 @@ class PeoplePicker extends ComboBox {
     }
     async resolveUser(identifier) {
         if (!identifier) return null;
-        this.instance?.addClass("form-control--loading");
+        this._setLoading(true);
         try {
             const results = await searchUsers(identifier, this._searchOptions);
             if (!this.isAlive || results.length === 0) return null;
@@ -3395,7 +3505,7 @@ class PeoplePicker extends ComboBox {
             return match;
         } finally {
             if (this.isAlive) {
-                this.instance?.removeClass("form-control--loading");
+                this._setLoading(false);
             }
         }
     }
