@@ -1,0 +1,3 @@
+/* REPRINT LABELS -- styles moved to shared global css/mail-workflow.css
+ * (mail-labels__* + qr-label__* classes), used by both internal and external
+ * label routes via createLabelsRoute. No route-specific overrides needed. */

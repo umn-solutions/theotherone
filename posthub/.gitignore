@@ -1,0 +1,24 @@
+# Dependencies and build outputs
+node_modules/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SharePoint specific
+*.xsn
+*.xsd
+feature.xml
+
+# Environment
+.env
+.env.local

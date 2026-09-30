@@ -1,0 +1,188 @@
+/* EXTERNAL MAIL CONFIG - Route-specific overrides only */
+/* Shared page shell uses posthub__* classes from shared.css */
+
+/* Constrain content to roughly the facilities dashboard width, centered */
+.external-mail-config__page {
+  align-items: center;
+}
+.external-mail-config__page > * {
+  width: 100%;
+  max-width: 78rem;
+}
+
+/* Tab group fills the remaining page height */
+.external-mail-config__tabs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--space-xxxl) var(--space-xxl) var(--space-xxxl);
+  overflow: hidden;
+}
+
+/* Each tab's content: control on top, scrollable list below */
+.external-mail-config__tab {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-l);
+  padding-top: var(--space-l);
+}
+
+/* New-item control block */
+.external-mail-config__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.external-mail-config__add-label {
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg-secondary);
+}
+
+.external-mail-config__add-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-mNudge);
+}
+
+.external-mail-config__add-input { flex: 1; max-width: 30rem; }
+
+.external-mail-config__add-btn {
+  padding: 0.5rem 1.5rem;
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-inverted);
+  background: var(--color-brand-primary);
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--curve-easy-ease);
+  white-space: nowrap;
+}
+.external-mail-config__add-btn:hover {
+  background: var(--color-brand-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-8);
+}
+
+/* Scrollable options list */
+.external-mail-config__list {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 22rem);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sNudge);
+  padding-right: var(--space-sNudge);
+}
+
+.external-mail-config__empty {
+  padding: 1.5rem 0;
+  font-size: var(--font-size-200);
+  color: var(--color-fg-tertiary);
+}
+
+/* Option row */
+.external-mail-config__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-l);
+  background: var(--color-bg-base);
+  padding: var(--space-mNudge) var(--space-xl);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-4, var(--shadow-8));
+  flex-shrink: 0;
+}
+.external-mail-config__row--inactive { opacity: 0.55; }
+.external-mail-config__row--inactive:hover { opacity: 0.75; }
+
+.external-mail-config__row-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-300);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg-primary);
+}
+
+.external-mail-config__row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.external-mail-config__toggle-btn {
+  width: auto;
+  flex: 0 0 auto;
+  padding: 0.375rem var(--space-l);
+  font-size: 0.8125rem;
+  font-weight: var(--font-weight-semibold);
+  border: none;
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--curve-easy-ease);
+  white-space: nowrap;
+}
+.external-mail-config__toggle-btn--active { background: var(--color-brand-selected); color: var(--color-brand-active); }
+.external-mail-config__toggle-btn--active:hover { background: var(--color-success-bg); }
+.external-mail-config__toggle-btn--inactive { background: var(--color-bg-subtle); color: var(--color-fg-secondary); }
+.external-mail-config__toggle-btn--inactive:hover { background: var(--color-stroke-subtle); }
+
+.external-mail-config__delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--color-stroke-subtle);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-fg-tertiary);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--curve-easy-ease);
+}
+.external-mail-config__delete-btn:hover {
+  background: var(--color-status-danger-bg, #fde8e8);
+  border-color: var(--color-status-danger, #dc3545);
+  color: var(--color-status-danger, #dc3545);
+}
+
+/* Confirm delete modal */
+.external-mail-config__modal {
+  max-width: 27.5rem;
+  width: 90vw;
+  padding: var(--space-xxxl);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-base);
+  box-shadow: var(--shadow-28);
+}
+.external-mail-config__modal-title {
+  font-size: 1.375rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  margin: 0 0 var(--space-l) 0;
+}
+.external-mail-config__modal-form { display: flex; flex-direction: column; gap: var(--space-l); }
+.external-mail-config__confirm-text {
+  font-size: var(--font-size-300);
+  color: var(--color-fg-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+.external-mail-config__modal-actions { display: flex; justify-content: flex-end; gap: 0.625rem; }
+
+@media (max-width: 768px) {
+  .external-mail-config__tabs { padding: 0 var(--space-l) var(--space-l) var(--space-l); }
+  .external-mail-config__add-input { max-width: none; }
+}

@@ -1,0 +1,24 @@
+/* MAIL ACTION - Route-specific overrides for internal-mail action routes */
+/* Shared layout/table/prompt/badge/scan styles are in shared.css */
+
+/* Grid column layout */
+.mail-action__table {
+  --table-columns: 1.8fr 0.8fr 1.2fr 1.2fr 1.2fr 1.2fr;
+}
+
+/* Mobile: collapse table to stacked layout */
+@media (max-width: 768px) {
+  .mail-action__table .posthub__table-head { display: none; }
+
+  .mail-action__table .posthub__table-row {
+    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-mNudge);
+  }
+
+  .mail-action__table .posthub__table-cell {
+    padding: 0.25rem 0;
+    white-space: normal;
+  }
+}

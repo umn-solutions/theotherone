@@ -1,0 +1,62 @@
+/* SEARCH EXTERNAL MAIL - Route-specific overrides only */
+/* Filter sidebar uses shared posthub__filter-sidebar / posthub__filter-grid */
+
+/* Table grid: 7 columns -- Received | Status | Category | Current | Destination | Recipient | Tracking */
+.external-mail-search__table { --table-columns: 1fr 0.8fr 0.9fr 1.1fr 1.1fr 1.1fr 1.4fr; }
+
+.external-mail-search__body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Refine section groups the filter grid + Category filter above the button row */
+.external-mail-search__refine {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-l);
+}
+
+/* Mail Type filter: one checkbox per external mail type, stacked vertically */
+.external-mail-search__type-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+}
+
+/* The shared .form-control rule forces width:25ch on the checkbox, stretching it
+   into a wide bar. Restore the intended square box. */
+.external-mail-search__type-filter .nofbiz__checkbox {
+  width: 1.25em;
+  flex: 0 0 auto;
+}
+
+/* FieldLabel --right stretches the checkbox container (flex:1), pushing the label
+   to the far edge. Collapse it so square + label sit together, left-aligned. */
+.external-mail-search__type-filter .nofbiz__fieldlabel__component-container {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+/* Results area */
+.external-mail-search__results {
+  flex: 1;
+  overflow: hidden;
+  padding: var(--space-l) var(--space-xxl) var(--space-xxl) var(--space-xxl);
+  display: flex;
+  flex-direction: column;
+}
+
+.external-mail-search__result-count {
+  font-size: var(--font-size-200);
+  color: var(--color-fg-secondary);
+  margin: 0 0 var(--space-mNudge) 0;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .external-mail-search__body { flex-direction: column; }
+  .external-mail-search__results { padding: 0 var(--space-l) var(--space-l) var(--space-l); }
+  .external-mail-search__table { --table-columns: 1fr; }
+}

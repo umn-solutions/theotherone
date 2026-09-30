@@ -1,0 +1,141 @@
+/* MY MAIL - Route-specific overrides only */
+/* Shared layout uses posthub__* classes from shared.css */
+
+/* Title section wraps title + subtitle vertically */
+.my-mail__title-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* Table grid: 6 columns -- Date | Status | Location | Destination | Person | Tracking */
+.my-mail__table { --table-columns: 1fr 0.8fr 1.2fr 1.2fr 1.2fr 1.6fr; }
+
+/* Body: sidebar filters + results (horizontal flex) */
+.my-mail__body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Filter sidebar */
+.my-mail__filters {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 18rem;
+  max-width: 18rem;
+  padding: var(--space-l) var(--space-xxl);
+  border-right: var(--stroke-thin) solid var(--color-stroke-subtle);
+  background: var(--color-bg-base);
+  overflow: visible;
+  flex-shrink: 0;
+  z-index: 5;
+}
+
+.my-mail__filter-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-l);
+}
+
+.my-mail__filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* ComboBoxes and DateRangeInput stretch to full sidebar width */
+.my-mail__filter-group .nofbiz__combobox,
+.my-mail__filter-group .nofbiz__daterangeinput {
+  width: 100%;
+}
+
+.my-mail__filter-label {
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg-secondary);
+}
+
+.my-mail__button-row {
+  display: flex;
+  padding-top: var(--space-mNudge);
+}
+
+.my-mail__button-row .nofbiz__button {
+  width: 100%;
+}
+
+/* View mode toggle */
+.my-mail__view-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sNudge);
+}
+
+.my-mail__tabs {
+  display: flex;
+  gap: var(--space-xxl);
+  border-bottom: var(--stroke-thin) solid var(--color-stroke-subtle);
+}
+
+.my-mail__tab {
+  padding: var(--space-sNudge) 0;
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg-tertiary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--curve-easy-ease);
+  margin-bottom: -1px;
+}
+
+.my-mail__tab:hover {
+  color: var(--color-fg-primary);
+}
+
+.my-mail__tab--active {
+  color: var(--color-brand-primary);
+  border-bottom-color: var(--color-brand-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.my-mail__view-description {
+  font-size: var(--font-size-100);
+  color: var(--color-fg-secondary);
+  font-style: italic;
+  margin: 0;
+}
+
+/* Results area */
+.my-mail__results {
+  flex: 1;
+  overflow: hidden;
+  padding: var(--space-l) var(--space-xxl) var(--space-xxl) var(--space-xxl);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Result count */
+.my-mail__result-count {
+  font-size: var(--font-size-200);
+  color: var(--color-fg-secondary);
+  margin: 0 0 var(--space-mNudge) 0;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .my-mail__body { flex-direction: column; }
+  .my-mail__filters {
+    min-width: 0;
+    max-width: none;
+    border-right: none;
+    border-bottom: var(--stroke-thin) solid var(--color-stroke-subtle);
+    max-height: 18.75rem;
+    padding: var(--space-l);
+  }
+  .my-mail__results { padding: 0 var(--space-l) var(--space-l) var(--space-l); }
+  .my-mail__table { --table-columns: 1fr; }
+}

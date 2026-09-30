@@ -1,0 +1,72 @@
+/* Image Card Component */
+
+.posthub__image-card {
+	position: relative;
+	width: 20vw;
+	height: 60svh;
+	overflow: hidden;
+	border-radius: var(--radius-lg);
+	cursor: pointer;
+	box-shadow: var(--shadow-8);
+	transition: box-shadow 0.3s ease;
+}
+
+
+.posthub__image-card:hover {
+	box-shadow: var(--shadow-16);
+
+	& img {
+		filter:contrast(.8) blur(3px) ;
+		transform: scale(1.1);
+	}
+}
+
+.posthub__image-card__image {
+	width: 100%;
+	height: 100%;
+	filter: contrast(.5) brightness(1);
+
+	background: linear-gradient(#257650,#044527);
+	background-blend-mode: color-burn;
+}
+
+.posthub__image-card__image img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	transition: all .25s ease;
+	opacity: .5;
+}
+
+.posthub__image-card__overlay {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	padding: 1rem 1.5rem;
+	background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+}
+
+.posthub__image-card__title {
+	color: #fff;
+	font-size: 1.375rem;
+	font-weight: var(--font-weight-semibold);
+	margin: 0;
+}
+
+.posthub__image-card__description {
+	color: rgba(255, 255, 255, 0.9);
+	font-size: 0.9375rem;
+	font-weight: var(--font-weight-regular);
+	margin: 0;
+	max-height: 0;
+	opacity: 0;
+	overflow: hidden;
+	transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+}
+
+.posthub__image-card:hover .posthub__image-card__description {
+	max-height: 5rem;
+	opacity: 1;
+	margin-top: 0.5rem;
+}

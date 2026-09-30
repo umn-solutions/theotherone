@@ -1,0 +1,71 @@
+/* NAVBAR COMPONENT */
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--color-brand-primary--dark);
+  padding: 1em;
+  z-index: 100;
+  box-shadow: var(--shadow-8);
+}
+
+/* Left Section - Logo and Brand */
+.navbar__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-mNudge);
+}
+
+.navbar__logo {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.navbar__logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+
+.navbar__brand {
+  color: var(--color-fg-inverted);
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 1px;
+}
+
+/* Right Section - User Name */
+.navbar__right {
+  display: flex;
+  align-items: center;
+}
+
+.navbar__user {
+  color: var(--color-fg-inverted);
+  font-size: var(--font-size-300);
+  font-weight: var(--font-weight-regular);
+  font-style: italic;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0.625rem var(--space-l);
+    height: 3.125rem;
+  }
+
+  .navbar__logo {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .navbar__brand {
+    font-size: var(--font-size-300);
+  }
+
+  .navbar__user {
+    font-size: var(--font-size-200);
+  }
+}

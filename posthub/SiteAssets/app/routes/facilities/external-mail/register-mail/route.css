@@ -1,0 +1,22 @@
+/* REGISTER EXTERNAL MAIL HUB - Route-specific overrides only */
+/* Card grid + cards reuse shared posthub__card* classes from shared.css */
+
+.external-mail-register__wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  background: var(--color-bg-secondary);
+  padding: var(--space-xxl) var(--space-xxxl);
+  overflow-y: auto;
+  gap: var(--space-l);
+}
+
+.external-mail-register__wrapper > * {
+  width: 100%;
+  max-width: 75rem;
+}
+
+@media (max-width: 768px) {
+  .external-mail-register__wrapper { padding: 1.25rem var(--space-l); }
+}

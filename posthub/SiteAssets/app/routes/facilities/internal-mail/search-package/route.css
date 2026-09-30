@@ -1,0 +1,43 @@
+/* SEARCH PACKAGE - Route-specific overrides only */
+/* Shared layout uses posthub__* classes from shared.css */
+
+/* Table grid: 7 columns -- Tracking | Status | Location | Destination | Sender | Recipient | Modified */
+.search-package__table { --table-columns: 1.5fr 0.8fr 1fr 1fr 1.1fr 1.1fr 0.9fr; }
+
+/* Body: inline flex (filters sidebar + results) */
+.search-package__body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Results area */
+.search-package__results {
+  flex: 1;
+  overflow: hidden;
+  padding: var(--space-l) var(--space-xxl) var(--space-xxl) var(--space-xxl);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Result count */
+.search-package__result-count {
+  font-size: var(--font-size-200);
+  color: var(--color-fg-secondary);
+  margin: 0 0 var(--space-mNudge) 0;
+  flex-shrink: 0;
+}
+
+/* Delete confirm dialog footer */
+.search-package__dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-mNudge);
+}
+
+@media (max-width: 768px) {
+  .search-package__body { flex-direction: column; }
+  .search-package__results { padding: 0 var(--space-l) var(--space-l) var(--space-l); }
+  .search-package__table { --table-columns: 1fr; }
+}

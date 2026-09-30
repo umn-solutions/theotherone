@@ -1,0 +1,87 @@
+/* REPORTS - route layout */
+
+.reports__body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.reports__content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-l) var(--space-xxl);
+  gap: var(--space-xxl);
+}
+
+/* Direct children must not shrink, otherwise flex-column squishes chart cards
+   instead of producing a scrollbar -- lower sections become unreachable. */
+.reports__content > * {
+  flex-shrink: 0;
+}
+
+.reports__kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-l);
+  padding-bottom: var(--space-l);
+  border-bottom: var(--stroke-thin) solid var(--color-stroke-subtle);
+}
+
+.reports__overview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-xxl);
+}
+
+.reports__overview .posthub__chart-card {
+  height: 20rem;
+}
+
+.reports__detail-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xxl);
+}
+
+.reports__detail-2col .posthub__chart-card {
+  height: 22rem;
+}
+
+/* Summary: indicator table (wide) + status donut (narrow) */
+.reports__summary {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-xxl);
+}
+
+.reports__summary .posthub__chart-card {
+  height: 22rem;
+}
+
+/* Matrix + indicator table can exceed the card; let their canvas scroll
+   rather than clip. */
+.reports__card--scroll .posthub__chart-card__canvas {
+  overflow: auto;
+}
+
+@media (max-width: 1280px) {
+  .reports__kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .reports__overview { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 1024px) {
+  .reports__overview { grid-template-columns: 1fr; }
+  .reports__detail-2col { grid-template-columns: 1fr; }
+  .reports__summary { grid-template-columns: 1fr; }
+  .reports__kpi-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .reports__body { flex-direction: column; }
+  .reports__content { padding: var(--space-l); gap: var(--space-l); }
+  .reports__kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}

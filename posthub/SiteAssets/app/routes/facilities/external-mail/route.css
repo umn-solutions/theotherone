@@ -1,0 +1,112 @@
+/* EXTERNAL MAIL HUB - Route-specific overrides only */
+/* Shared layout uses posthub__* classes from shared.css */
+
+.external-mail__wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  background: var(--color-bg-secondary);
+  padding: var(--space-xxl) var(--space-xxxl);
+  overflow-y: auto;
+}
+
+.external-mail__wrapper > * {
+  width: 100%;
+  max-width: 75rem;
+}
+
+.external-mail__body {
+  display: flex;
+  place-content: center;
+  place-items: start;
+}
+
+.external-mail__cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-xxl);
+  width: 100%;
+}
+
+.external-mail__card {
+  background: var(--color-bg-base);
+  padding: var(--space-xxxl) var(--space-xxl);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-mNudge);
+  transition: all 0.3s ease;
+}
+
+.external-mail__card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-16);
+}
+
+.external-mail__card-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--color-brand-primary);
+  color: var(--color-fg-inverted);
+  flex-shrink: 0;
+}
+
+.external-mail__card-step svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: currentColor;
+}
+
+.external-mail__card-title {
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  margin: 0;
+}
+
+.external-mail__card-description {
+  font-size: var(--font-size-200);
+  color: var(--color-fg-secondary);
+  margin: 0;
+  flex: 1;
+}
+
+.external-mail__card-btn {
+  padding: 0.625rem var(--space-xxl);
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-inverted);
+  background: var(--color-brand-primary);
+  border: none;
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--curve-easy-ease);
+  text-align: center;
+  margin-top: 0.25rem;
+}
+
+.external-mail__card-btn:hover {
+  background: var(--color-brand-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-8);
+}
+
+@media (max-width: 1024px) {
+  .external-mail__cards { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .external-mail__wrapper { padding: 1.25rem var(--space-l); }
+  .external-mail__cards { grid-template-columns: 1fr; }
+  .external-mail__card { padding: var(--space-xxl); }
+  .external-mail__card-btn { width: 100%; }
+}

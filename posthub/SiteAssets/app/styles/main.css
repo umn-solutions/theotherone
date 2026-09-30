@@ -1,0 +1,51 @@
+/* PostHub - App-level overrides (no @import statements) */
+/* nofbiz.base.css loaded by pageReset; shared CSS loaded via StyleResource in index.js */
+/* Route CSS auto-loaded by Router */
+
+/* Full-height layout -- no body-level scrolling */
+html,
+body {
+	height: 100%;
+	overflow: hidden;
+}
+
+body {
+	background: linear-gradient(to bottom, #fff5, #4db68e88);
+}
+
+/* SPARC route wrapper: grid with navbar row + content row */
+.nofbiz__route {
+	display: grid;
+	grid-template-rows: auto 1fr;
+	height: 100vh;
+	overflow: hidden;
+	gap: 0;
+}
+
+/* Layout utilities */
+.text-center {
+	text-align: center;
+}
+.text-right {
+	text-align: right;
+}
+
+.mt-1 {
+	margin-top: var(--space-sNudge);
+}
+.mt-2 {
+	margin-top: var(--space-l);
+}
+.mt-3 {
+	margin-top: var(--space-xxl);
+}
+
+.mb-1 {
+	margin-bottom: var(--space-sNudge);
+}
+.mb-2 {
+	margin-bottom: var(--space-l);
+}
+.mb-3 {
+	margin-bottom: var(--space-xxl);
+}
