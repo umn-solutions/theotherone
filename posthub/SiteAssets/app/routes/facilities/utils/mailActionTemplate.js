@@ -208,15 +208,26 @@ export async function createMailActionRoute(config, {
     matchAndAddPackages(parsed)
   }
 
+  function handleRefocusClick(e) {
+    const target = e.target
+    const isInteractive = target.closest('button, select, input, textarea:not(.posthub__hidden-textarea), a, .nofbiz__combobox')
+    if (!isInteractive) focusTextarea()
+  }
+
   function attachRefocusListener() {
     setTimeout(() => {
-      document.addEventListener('click', (e) => {
-        const target = e.target
-        const isInteractive = target.closest('button, select, input, textarea:not(.posthub__hidden-textarea), a, .nofbiz__combobox')
-        if (!isInteractive) focusTextarea()
-      })
+      document.addEventListener('click', handleRefocusClick)
     }, 100)
   }
+
+  // Leak fix: this click listener lives on `document`, not on a SPARC component,
+  // so Router teardown never removes it. Without explicit cleanup, every visit to
+  // a mail-action route stacks another permanent handler pinning the whole route
+  // closure. Also clear any pending scan debounce so it cannot fire into a dead view.
+  config.onCleanup(() => {
+    document.removeEventListener('click', handleRefocusClick)
+    clearTimeout(scanDebounceTimer)
+  })
 
   function handlePaste(e) {
     e.preventDefault()

@@ -152,7 +152,7 @@ export async function createExternalMailListView(config, {
     loadLocationOptions(siteApi),
   ])
 
-  const { filterGrid, buttonRowSlot, clearAll, attachTrackingListener } = createPackageFilters({
+  const { filterGrid, buttonRowSlot, clearAll } = createPackageFilters({
     filters,
     locationOptions,
     options: { includeTracking: true },
@@ -231,7 +231,6 @@ export async function createExternalMailListView(config, {
 
   allItems = await fetchItemsAcrossLists(siteApi, MAIL_TYPES.map((t) => t.list))
   applyFilters()
-  attachTrackingListener()
 
   return [navbar, contentArea]
 }

@@ -192,7 +192,8 @@ export default defineRoute((config) => {
     try {
       allPackages = await siteApi.list(LIST_PACKAGES).getItems(caml)
       loading.dismiss()
-    } catch {
+    } catch (err) {
+      console.error('[search-package] load packages failed', err)
       loading.error('Failed to load mail')
     }
     applyFilters()
@@ -213,13 +214,14 @@ export default defineRoute((config) => {
     let activeLocations = []
     try {
       activeLocations = await siteApi.list(LIST_LOCATIONS).getItems({ IsActive: 'true' })
-    } catch {
+    } catch (err) {
+      console.error('[search-package] load locations failed', err)
       Toast.error('Failed to load locations')
     }
 
     const locationOptions = activeLocations.map(l => l.Title)
 
-    const { filterGrid, buttonRowSlot, clearAll, attachTrackingListener } = createPackageFilters({
+    const { filterGrid, buttonRowSlot, clearAll } = createPackageFilters({
       filters,
       locationOptions,
       options: { includeTracking: true },
@@ -261,7 +263,8 @@ export default defineRoute((config) => {
               },
             })
             downloadFile(buffer, `posthub-search-${__dayjs().format('YYYYMMDD-HHmmss')}.xlsx`)
-          } catch {
+          } catch (err) {
+            console.error('[search-package] export failed', err)
             Toast.error('Export failed')
           } finally {
             exportButton.isLoading = false
@@ -274,7 +277,6 @@ export default defineRoute((config) => {
 
     filterSection.children = [filterGrid, buttonRowSlot]
 
-    attachTrackingListener()
     await fetchPackages(filters.dateFrom, filters.dateTo)
     pageLoader.disable()
   }

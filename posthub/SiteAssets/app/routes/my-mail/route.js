@@ -94,7 +94,8 @@ export default defineRoute((config) => {
     try {
       allMyPackages = await siteApi.list(LIST_PACKAGES).getItems(caml)
       loading.dismiss()
-    } catch {
+    } catch (err) {
+      console.error('[my-mail] load packages failed', err)
       loading.error('Failed to load mail')
     }
     clearClientFilters()
@@ -261,6 +262,10 @@ export default defineRoute((config) => {
     dateDebounceTimer = setTimeout(() => fetchPackages(filters.dateFrom, filters.dateTo), 300)
   })
 
+  // Clear any pending date-debounce on teardown so it can't fire into a
+  // torn-down view (fetchPackages writes to resultsContainer).
+  config.onCleanup(() => clearTimeout(dateDebounceTimer))
+
   // --- ComboBox filters ---
 
   const statusField = new FormField({ value: [] })
@@ -415,7 +420,8 @@ export default defineRoute((config) => {
     let activeLocations = []
     try {
       activeLocations = await siteApi.list(LIST_LOCATIONS).getItems({ IsActive: 'true' })
-    } catch {
+    } catch (err) {
+      console.error('[my-mail] load locations failed', err)
       Toast.error('Failed to load locations')
     }
 

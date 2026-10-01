@@ -106,16 +106,27 @@ export async function createRerouteRoute(config, ctx) {
     }, 100)
   }
 
+  function handleRefocusClick(e) {
+    if (currentPackage) return
+    const target = e.target
+    const isInteractive = target.closest('button, select, input, textarea:not(.posthub__hidden-textarea), a, .nofbiz__combobox')
+    if (!isInteractive) focusTextarea()
+  }
+
   function attachRefocusListener() {
     setTimeout(() => {
-      document.addEventListener('click', (e) => {
-        if (currentPackage) return
-        const target = e.target
-        const isInteractive = target.closest('button, select, input, textarea:not(.posthub__hidden-textarea), a, .nofbiz__combobox')
-        if (!isInteractive) focusTextarea()
-      })
+      document.addEventListener('click', handleRefocusClick)
     }, 100)
   }
+
+  // Leak fix: this click listener lives on `document`, not on a SPARC component,
+  // so Router teardown never removes it. Without explicit cleanup, every reroute
+  // visit stacks another permanent handler pinning the route closure. Clear the
+  // pending scan debounce too.
+  config.onCleanup(() => {
+    document.removeEventListener('click', handleRefocusClick)
+    clearTimeout(scanDebounceTimer)
+  })
 
   function handleScanInput() {
     clearTimeout(scanDebounceTimer)

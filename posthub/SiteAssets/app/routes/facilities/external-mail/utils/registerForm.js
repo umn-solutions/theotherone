@@ -224,6 +224,7 @@ export async function createRegisterForm(config, { title, subtitle, includeExter
         console.error('[register-external] createItem failed', err)
         loading.error('Failed to register mail')
         contentLoader.toggleLoader()
+      } finally {
         registerBtn.isLoading = false
       }
     },

@@ -35,9 +35,15 @@ export default defineRoute(async (config) => {
 	const user = new CurrentUser();
 
 	// Load active locations
-	const activeLocations = await siteApi
-		.list(LIST_LOCATIONS)
-		.getItems({ IsActive: "true" });
+	let activeLocations = [];
+	try {
+		activeLocations = await siteApi
+			.list(LIST_LOCATIONS)
+			.getItems({ IsActive: "true" });
+	} catch (err) {
+		console.error("[send-mail] failed to load locations", err);
+		Toast.error("Failed to load locations");
+	}
 
 	// Navbar component
 	const navbar = createNavbar();
@@ -340,6 +346,7 @@ export default defineRoute(async (config) => {
 				console.error("send-mail createItem error:", e);
 				loading.error("Failed to create mail");
 				contentLoader.toggleLoader();
+			} finally {
 				createBtn.isLoading = false;
 			}
 		},

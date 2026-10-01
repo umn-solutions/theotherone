@@ -591,6 +591,8 @@ export default defineRoute((config) => {
     }
     startField.subscribe(scheduleFetch)
     endField.subscribe(scheduleFetch)
+    // Clear any pending date-debounce on teardown (fetchData writes to the DOM).
+    config.onCleanup(() => clearTimeout(dateDebounceTimer))
 
     // Building filter (origin or destination) — client-side, no refetch.
     const buildingField = new FormField({ value: ALL_BUILDINGS })

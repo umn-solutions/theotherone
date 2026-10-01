@@ -96,7 +96,8 @@ export default defineRoute(async (config) => {
   let locationModal = null
   if (!isHubLocationSet()) {
     locationModal = await createHubLocationModal()
-    setTimeout(() => locationModal.open(), 0)
+    const openTimer = setTimeout(() => locationModal.open(), 0)
+    config.onCleanup(() => clearTimeout(openTimer))
   }
 
   const result = [navbar, pageWrapper]

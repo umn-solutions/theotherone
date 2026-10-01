@@ -1,12 +1,11 @@
 import {
 	pageReset,
 	Router,
-	CurrentUser,
 	StyleResource,
 	resolvePath,
 } from "./libs/nofbiz/nofbiz.base.js";
 import "./utils/app-icons.js";
-import { initAccess } from "./utils/access.js";
+import { initCurrentUser } from "./utils/access.js";
 // Initialize SPARC page settings
 pageReset({
 	themePath: resolvePath("@/styles/main.css"),
@@ -25,13 +24,25 @@ new StyleResource(resolvePath("@/css/mail-action.css"));
 new StyleResource(resolvePath("@/css/mail-workflow.css"));
 new StyleResource(resolvePath("@/components/imageCard.css"));
 
-// Initialize current user context
-const user = new CurrentUser();
-await user.initialize();
-
-// Resolve the current user's access level (via the reliable email path) and cache
-// it before the Router mounts, so route guards and conditional nav are synchronous.
-await initAccess();
+// Initialize current user + resolve access rank in one bootstrap.
+// See utils/access.js for why profile load and rank resolution are two REST passes.
+try {
+	await initCurrentUser();
+} catch (err) {
+	// Boot-fatal: without a resolved user the Router and access guards cannot run.
+	// Surface a visible message (console alone is invisible to the end user) and
+	// halt boot so we never mount routes against a half-initialized app.
+	console.error("[boot] user initialization failed", err);
+	const fatal = document.createElement("div");
+	fatal.className = "posthub__boot-error";
+	fatal.setAttribute("role", "alert");
+	fatal.textContent =
+		"PostHub could not start: failed to load your user profile. Please refresh the page, and contact Facilities if this keeps happening.";
+	fatal.style.cssText =
+		"margin:16px;padding:16px;border:2px solid #b00020;border-radius:6px;background:#fff;color:#b00020;font:600 14px/1.5 sans-serif;";
+	document.body.prepend(fatal);
+	throw err;
+}
 
 // Initialize Router
 // Note: 'routes/route.js' (home) is auto-loaded, don't register it
@@ -39,7 +50,7 @@ new Router([
 	"my-mail", // Route: /my-mail
 	"send-mail", // Route: /send-mail
 	"facilities", // Route: /facilities
-"facilities/internal-mail", // Route: /facilities/internal-mail
+	"facilities/internal-mail", // Route: /facilities/internal-mail
 	"facilities/internal-mail/print-labels", // Route: /facilities/internal-mail/print-labels
 	"facilities/internal-mail/dispatch", // Route: /facilities/internal-mail/dispatch
 	"facilities/internal-mail/reception", // Route: /facilities/internal-mail/reception

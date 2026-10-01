@@ -27,7 +27,13 @@ export default defineRoute(async (config) => {
   const siteApi = new SiteApi()
 
   // Load all locations (active and inactive)
-  let locations = await siteApi.list(LIST_LOCATIONS).getItems()
+  let locations = []
+  try {
+    locations = await siteApi.list(LIST_LOCATIONS).getItems()
+  } catch (err) {
+    console.error('[manage-locations] failed to load locations', err)
+    Toast.error('Failed to load locations')
+  }
 
   // Navbar
   const navbar = createNavbar()
@@ -149,7 +155,8 @@ export default defineRoute(async (config) => {
       loading.success('Location created')
       createModal.close()
       renderFilteredCards()
-    } catch {
+    } catch (err) {
+      console.error('[manage-locations] create failed', err)
       loading.error('Failed to create location')
     } finally {
       createBtn.isLoading = false
@@ -192,7 +199,7 @@ export default defineRoute(async (config) => {
       return
     }
     pendingDeleteLoc = loc
-    confirmText.text = `Delete "${loc.Title}"? This cannot be undone.`
+    confirmText.children = `Delete "${loc.Title}"? This cannot be undone.`
     deleteModal.open()
   }
 
@@ -208,7 +215,8 @@ export default defineRoute(async (config) => {
       loading.success('Location deleted')
       deleteModal.close()
       renderFilteredCards()
-    } catch {
+    } catch (err) {
+      console.error('[manage-locations] delete failed', err)
       loading.error('Failed to delete location')
     } finally {
       confirmDeleteBtn.isLoading = false
@@ -287,7 +295,8 @@ export default defineRoute(async (config) => {
 
       loading.success(`Location ${wasActive ? 'deactivated' : 'activated'}`)
       renderFilteredCards()
-    } catch {
+    } catch (err) {
+      console.error('[manage-locations] toggle failed', err)
       loading.error('Failed to update location')
     } finally {
       toggleBtn.isLoading = false

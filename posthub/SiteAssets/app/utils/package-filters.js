@@ -32,7 +32,6 @@ const TRACKING_DEBOUNCE_MS = 200
  *   filterGrid: Container,
  *   buttonRowSlot: Container,
  *   clearAll: () => void,
- *   attachTrackingListener: () => void,
  * }}
  */
 export function createPackageFilters({
@@ -45,29 +44,24 @@ export function createPackageFilters({
   const includeTracking = options.includeTracking !== false
 
   let dateDebounceTimer = null
-  let trackingDebounce = null
 
-  // Tracking number (optional)
+  // Tracking number (optional). TextInput already debounces value-sync into its bound
+  // FormField (debounceMs); subscribing fires post-debounce. This replaces the old
+  // reach-into-the-DOM hack (instance[0] + querySelector('input') + manual
+  // addEventListener/setTimeout), which was fragile across SPARC versions.
   const trackingField = includeTracking ? new FormField({ value: filters.tracking || '' }) : null
   const trackingInput = includeTracking
-    ? new TextInput(trackingField, { placeholder: 'e.g. POSTHUB-20260201-00001' })
+    ? new TextInput(trackingField, {
+        placeholder: 'e.g. POSTHUB-20260201-00001',
+        debounceMs: TRACKING_DEBOUNCE_MS,
+      })
     : null
 
-  function attachTrackingListener() {
-    if (!includeTracking) return
-    setTimeout(() => {
-      const el = trackingInput.instance?.[0]
-      if (!el) return
-      const input = el.tagName === 'INPUT' ? el : el.querySelector('input')
-      if (!input) return
-      input.addEventListener('input', () => {
-        clearTimeout(trackingDebounce)
-        trackingDebounce = setTimeout(() => {
-          filters.tracking = (input.value || '').toLowerCase()
-          onFilterChange()
-        }, TRACKING_DEBOUNCE_MS)
-      })
-    }, 100)
+  if (includeTracking) {
+    trackingField.subscribe(() => {
+      filters.tracking = (trackingField.value || '').toLowerCase()
+      onFilterChange()
+    })
   }
 
   // People pickers
@@ -201,6 +195,10 @@ export function createPackageFilters({
     if (includeTracking) {
       filters.tracking = ''
       trackingField.value = ''
+      // FormControl does not auto-reflect a programmatic field value change --
+      // render() to actually clear the box (same pattern as the checkbox reset in
+      // mailListView). Without it the input keeps showing the old tracking text.
+      trackingInput.render()
     }
     filters.senderEmail = ''
     filters.recipientEmail = ''
@@ -219,6 +217,7 @@ export function createPackageFilters({
     // Date range last: subscribers update filters.dateFrom/dateTo as fields settle.
     dateFromField.value = defaultDateFrom()
     dateToField.value = defaultDateTo()
+    dateRangeInput.render() // reflect the reset range in the DOM (no auto-rerender)
 
     clearTimeout(dateDebounceTimer)
     onDateChange(filters.dateFrom, filters.dateTo)
@@ -228,6 +227,5 @@ export function createPackageFilters({
     filterGrid,
     buttonRowSlot,
     clearAll,
-    attachTrackingListener,
   }
 }

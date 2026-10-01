@@ -124,20 +124,38 @@ export async function createLabelsRoute(config, ctx, { variant }) {
   function buildActionColumn() {
     return {
       label: 'Action',
-      render: (pkg) => new Container([
-        new Button(verb, {
-          onClickHandler: (e) => { markRowPrinted(e); handlePrintLabel(pkg) },
+      render: (pkg) => {
+        // PDF generation is async (canvas raster) -- lock the button and show
+        // progress so it can't be fired repeatedly while the PDF is building.
+        const pdfBtn = new Button(`${verb} PDF`, {
+          onClickHandler: async (e) => {
+            markRowPrinted(e)
+            pdfBtn.isLoading = true
+            const loading = Toast.loading('Generating PDF...')
+            try {
+              await printQrLabelPdf(pkg)
+              loading.success('PDF ready')
+            } catch (err) {
+              console.error('[labels] PDF print failed', err)
+              loading.error(err?.message ?? 'PDF print failed')
+            } finally {
+              pdfBtn.isLoading = false
+            }
+          },
           class: 'mail-labels__print-btn',
-        }),
-        new Button(`${verb} A4`, {
-          onClickHandler: (e) => { markRowPrinted(e); handlePrintLabelA4(pkg) },
-          class: 'mail-labels__print-btn',
-        }),
-        new Button(`${verb} PDF`, {
-          onClickHandler: (e) => { markRowPrinted(e); handlePrintLabelPdf(pkg) },
-          class: 'mail-labels__print-btn',
-        }),
-      ], { class: 'posthub__table-cell' }),
+        })
+        return new Container([
+          new Button(verb, {
+            onClickHandler: (e) => { markRowPrinted(e); handlePrintLabel(pkg) },
+            class: 'mail-labels__print-btn',
+          }),
+          new Button(`${verb} A4`, {
+            onClickHandler: (e) => { markRowPrinted(e); handlePrintLabelA4(pkg) },
+            class: 'mail-labels__print-btn',
+          }),
+          pdfBtn,
+        ], { class: 'posthub__table-cell' })
+      },
     }
   }
 
@@ -213,15 +231,6 @@ export async function createLabelsRoute(config, ctx, { variant }) {
 
   function handlePrintLabelA4(pkg) {
     printQrLabelA4(pkg, printContainer)
-  }
-
-  async function handlePrintLabelPdf(pkg) {
-    try {
-      await printQrLabelPdf(pkg)
-    } catch (err) {
-      console.error('[labels] PDF print failed', err)
-      Toast.error(err?.message ?? 'PDF print failed')
-    }
   }
 
   updateView()

@@ -16,8 +16,9 @@ import {
  * (`SiteApi.isUserInGroup(group, email)` -> `sitegroups/getbyname/users?$filter=Email`),
  * which is reliable in the sandbox AND on-prem. The resolved rank is cached, so the
  * route-time helpers below are SYNCHRONOUS -- no `await`, no email param, no REST
- * call per check. `initAccess()` MUST be awaited once in index.js after
- * `CurrentUser.initialize()` and before the Router is constructed.
+ * call per check. Bootstrap both the profile and this rank via the single
+ * `initCurrentUser()` entry point below, awaited once in index.js before the
+ * Router is constructed.
  */
 
 // Ordered low -> high privilege. Drives the startup resolution order.
@@ -33,16 +34,36 @@ const ACCESS_HIERARCHY = [
 // the user is not literally a member of the lower SharePoint group.
 const RANK = { EMPLOYEE: 1, ADMIN: 2 }
 
-// Cached privilege rank of the current user. -1 until initAccess() resolves it,
+// Cached privilege rank of the current user. -1 until resolveAccess() resolves it,
 // which also means "no access" if resolution fails.
 let _rank = -1
 
 /**
- * Resolve the current user's access level via the email path and cache it.
- * Call once at startup (index.js), after CurrentUser.initialize(). Idempotent.
+ * One-shot user bootstrap. Loads the CurrentUser profile, then resolves the access
+ * rank. Call once in index.js, before constructing the Router -- this is the single
+ * entry point; nothing else should call CurrentUser.initialize() or resolveAccess().
+ *
+ * Why two sequential REST passes and not one: `CurrentUser.initialize()` populates
+ * the profile (including the picker-canonical email) but derives its own group
+ * collection from `getuserbyid(id)/groups`, which returns [] here (stale principal)
+ * -- so `accessLevel` is null. `resolveAccess()` then reuses the now-known email with
+ * the reliable `sitegroups` member lookup. The second pass needs the email from the
+ * first, so they cannot collapse into one call -- but callers only touch this function.
+ *
+ * @returns {Promise<CurrentUser>} the initialized singleton
+ */
+export async function initCurrentUser() {
+  await new CurrentUser().initialize(ACCESS_HIERARCHY)
+  await resolveAccess()
+  return new CurrentUser()
+}
+
+/**
+ * Resolve the current user's access rank via the email path and cache it.
+ * Internal -- invoked by initCurrentUser(). Idempotent.
  * @returns {Promise<void>}
  */
-export async function initAccess() {
+async function resolveAccess() {
   _rank = -1
   const email = new CurrentUser().get('email')
   if (!email) {
