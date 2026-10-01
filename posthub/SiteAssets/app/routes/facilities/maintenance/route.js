@@ -23,9 +23,13 @@ import {
 } from '../../../utils/package-table-columns.js'
 import { LIST_PACKAGES } from '../../../utils/constants.js'
 import { sendChaseEmail } from '../utils/package-actions.js'
+import { guardAccess } from '../../../utils/access.js'
 
 export default defineRoute((config) => {
   config.setRouteTitle('Maintenance')
+
+  // Facilities route: admin access required
+  if (!guardAccess('ADMIN')) return []
 
   const navbar = createNavbar()
   const siteApi = new SiteApi()

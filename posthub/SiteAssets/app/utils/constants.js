@@ -13,7 +13,11 @@ export const LIST_EXTERNAL_SOURCES = "ExternalSources";
 export const LIST_CARRIERS = "Carriers";
 export const LIST_EXTERNAL_BULK = "ExternalMailBulk";
 
-// SharePoint group whose members may manage External Mail configuration.
+// SharePoint groups backing the access hierarchy (low -> high privilege).
+// Users in neither group are "regular users": no facilities access, but the
+// ungated send-mail / my-mail routes remain reachable.
+export const FACILITIES_EMPLOYEE_GROUP = "FacilitiesEmployee";
+// Members may manage External Mail configuration and other admin-only screens.
 export const FACILITIES_ADMIN_GROUP = "FacilitiesManager";
 export const LIST_EXTERNAL_TRACKED = "ExternalMailTracked";
 export const LIST_EXTERNAL_REGISTERED = "ExternalMailRegistered";

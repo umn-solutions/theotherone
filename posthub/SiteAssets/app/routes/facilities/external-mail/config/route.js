@@ -5,14 +5,11 @@ import {
   LinkButton,
   TabGroup,
   getIcon,
-  Toast,
-  Router,
   SiteApi,
-  CurrentUser,
 } from '../../../../libs/nofbiz/nofbiz.base.js'
 
 import { createNavbar } from '../../../../components/navbar.js'
-import { isFacilitiesAdmin } from '../../../../utils/access.js'
+import { guardAccess } from '../../../../utils/access.js'
 import {
   LIST_CATEGORIES,
   LIST_EXTERNAL_SOURCES,
@@ -24,15 +21,9 @@ export default defineRoute(async (config) => {
   config.setRouteTitle('External Mail Configuration')
 
   const navbar = createNavbar()
-  const user = new CurrentUser()
 
   // Admin-only: Facilities managers manage the External Mail option lists.
-  const admin = await isFacilitiesAdmin(user.get('email'))
-  if (!admin) {
-    Toast.error('Facilities admin access required')
-    Router.navigateTo('facilities')
-    return [navbar, new Container([])]
-  }
+  if (!guardAccess('ADMIN')) return [navbar, new Container([])]
 
   const siteApi = new SiteApi()
 

@@ -35,9 +35,13 @@ import {
 } from '../../../utils/constants.js'
 import { getLocationValue } from '../../../utils/user-helpers.js'
 import { parseFilterDate, toISOStart, toISOEnd, defaultDateFrom, defaultDateTo } from '../../../utils/date-helpers.js'
+import { guardAccess } from '../../../utils/access.js'
 
 export default defineRoute((config) => {
   config.setRouteTitle('Reports')
+
+  // Facilities route: employee+ access required
+  if (!guardAccess('EMPLOYEE')) return []
 
   const siteApi = new SiteApi()
   const ALL_BUILDINGS = 'All buildings'

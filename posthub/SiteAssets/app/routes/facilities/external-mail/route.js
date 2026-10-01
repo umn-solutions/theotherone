@@ -9,9 +9,13 @@ import {
 import { createNavbar } from '../../../components/navbar.js'
 import { isHubLocationSet } from '../utils/hubLocation.js'
 import { createHubLocationModal } from '../utils/hubLocationModal.js'
+import { guardAccess } from '../../../utils/access.js'
 
 export default defineRoute(async (config) => {
   config.setRouteTitle('External Mail')
+
+  // Facilities route: employee+ access required
+  if (!guardAccess('EMPLOYEE')) return []
 
   const navbar = createNavbar()
 

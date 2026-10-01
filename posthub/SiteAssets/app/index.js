@@ -6,6 +6,7 @@ import {
 	resolvePath,
 } from "./libs/nofbiz/nofbiz.base.js";
 import "./utils/app-icons.js";
+import { initAccess } from "./utils/access.js";
 // Initialize SPARC page settings
 pageReset({
 	themePath: resolvePath("@/styles/main.css"),
@@ -27,6 +28,10 @@ new StyleResource(resolvePath("@/components/imageCard.css"));
 // Initialize current user context
 const user = new CurrentUser();
 await user.initialize();
+
+// Resolve the current user's access level (via the reliable email path) and cache
+// it before the Router mounts, so route guards and conditional nav are synchronous.
+await initAccess();
 
 // Initialize Router
 // Note: 'routes/route.js' (home) is auto-loaded, don't register it

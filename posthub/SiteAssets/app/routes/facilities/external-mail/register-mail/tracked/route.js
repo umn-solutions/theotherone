@@ -1,9 +1,13 @@
 import { defineRoute } from '../../../../../libs/nofbiz/nofbiz.base.js'
 import { LIST_EXTERNAL_TRACKED } from '../../../../../utils/constants.js'
 import { createRegisterForm } from '../../utils/registerForm.js'
+import { guardAccess } from '../../../../../utils/access.js'
 
 export default defineRoute(async (config) => {
   config.setRouteTitle('Register Tracked Mail')
+
+  // Facilities route: employee+ access required
+  if (!guardAccess('EMPLOYEE')) return []
   return createRegisterForm(config, {
     title: 'Register Tracked Mail',
     subtitle: 'Register external mail and track it internally through the mail workflow.',

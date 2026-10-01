@@ -18,9 +18,13 @@ import {
 import { createNavbar } from '../../../../../components/navbar.js'
 import { LIST_EXTERNAL_BULK, BULK_TRACKING_PREFIX, BULK_BATCH_PREFIX } from '../../../../../utils/constants.js'
 import { loadCategoryOptions, loadLocationOptions, makeSequentialId } from '../../utils/external-data.js'
+import { guardAccess } from '../../../../../utils/access.js'
 
 export default defineRoute(async (config) => {
   config.setRouteTitle('Register Bulk Mail')
+
+  // Facilities route: employee+ access required
+  if (!guardAccess('EMPLOYEE')) return []
 
   const INITIAL_ROWS = 1
 

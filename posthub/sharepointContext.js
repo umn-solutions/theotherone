@@ -39,12 +39,14 @@ var _spMockData = {
   groupMembers: {
     RegularUser: [
       { Id: 10, LoginName: 'i:0#.w|POSTHUB\\pedro.ferreira', Title: 'Pedro Ferreira', Email: 'pedro.ferreira@company.com' },
+      { Id: 1, LoginName: 'i:0#.w|POSTHUB\\john.smith', Title: 'John Smith', Email: 'john.smith@company.com' },
+   
     ],
     FacilitiesEmployee: [
       { Id: 11, LoginName: 'i:0#.w|POSTHUB\\ana.costa', Title: 'Ana Costa', Email: 'ana.costa@company.com' },
     ],
     FacilitiesManager: [
-      { Id: 1, LoginName: 'i:0#.w|POSTHUB\\john.smith', Title: 'John Smith', Email: 'john.smith@company.com' },
+     
     ],
   },
 

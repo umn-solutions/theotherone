@@ -7,9 +7,13 @@ import {
 } from '../../../../libs/nofbiz/nofbiz.base.js'
 
 import { createNavbar } from '../../../../components/navbar.js'
+import { guardAccess } from '../../../../utils/access.js'
 
 export default defineRoute((config) => {
   config.setRouteTitle('Register External Mail')
+
+  // Facilities route: employee+ access required
+  if (!guardAccess('EMPLOYEE')) return []
 
   const navbar = createNavbar()
 

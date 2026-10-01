@@ -26,9 +26,13 @@ import {
 import { createEmptyState } from '../../../../utils/empty-state.js'
 import { parseFilterDate, toISOStart, toISOEnd, defaultDateFrom, defaultDateTo } from '../../../../utils/date-helpers.js'
 import { createPackageFilters } from '../../../../utils/package-filters.js'
+import { guardAccess } from '../../../../utils/access.js'
 
 export default defineRoute((config) => {
   config.setRouteTitle('Search Mail')
+
+  // Facilities route: employee+ access required
+  if (!guardAccess('EMPLOYEE')) return []
 
   const siteApi = new SiteApi()
 

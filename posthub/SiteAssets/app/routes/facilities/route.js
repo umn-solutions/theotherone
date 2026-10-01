@@ -4,18 +4,19 @@ import {
 	Text,
 	LinkButton,
 	getIcon,
-	CurrentUser,
 } from "../../libs/nofbiz/nofbiz.base.js";
 
 import { createNavbar } from "../../components/navbar.js";
-import { isFacilitiesAdmin } from "../../utils/access.js";
+import { isFacilitiesAdmin, guardAccess } from "../../utils/access.js";
 
 export default defineRoute(async (config) => {
 	config.setRouteTitle("Facilities");
 
+	// Facilities hub is employee+; non-employees get the 403 page via the guard.
+	if (!guardAccess("EMPLOYEE")) return [];
+
 	const navbar = createNavbar();
-	const user = new CurrentUser();
-	const admin = await isFacilitiesAdmin(user.get("email"));
+	const admin = isFacilitiesAdmin();
 
 	// Page header
 	const pageHeader = new Container(
@@ -67,21 +68,21 @@ export default defineRoute(async (config) => {
 			"View mail analytics and reports",
 			"facilities/reports",
 		),
-		featureCard(
-			"Manage Locations",
-			"Enable or disable delivery locations",
-			"facilities/manage-locations",
-		),
-		featureCard(
-			"Maintenance",
-			"Run admin workflows and database cleanup actions",
-			"facilities/maintenance",
-		),
 	];
 
-	// Admin-only: External Mail configuration (categories, sources, carriers)
+	// Admin-only: location management, maintenance, and External Mail configuration
 	if (admin) {
 		cards.push(
+			featureCard(
+				"Manage Locations",
+				"Enable or disable delivery locations",
+				"facilities/manage-locations",
+			),
+			featureCard(
+				"Maintenance",
+				"Run admin workflows and database cleanup actions",
+				"facilities/maintenance",
+			),
 			featureCard(
 				"External Mail Config",
 				"Manage categories, external sources, and carriers for external mail forms",

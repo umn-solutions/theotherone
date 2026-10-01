@@ -10,6 +10,7 @@ import {
 } from '../libs/nofbiz/nofbiz.base.js'
 import { createImageCard } from '../components/imageCard.js'
 import { APP_NAME } from '../utils/constants.js'
+import { isFacilitiesEmployee } from '../utils/access.js'
 
 export default defineRoute((config) => {
   config.setRouteTitle('Home')
@@ -169,8 +170,9 @@ export default defineRoute((config) => {
   })
   howItWorksModal.render()
 
-  // Cards area with 3 image cards
-  const cards = new Container([
+  // Cards area. Send Mail + My Mail are open to everyone; the Facilities Hub
+  // entry point is shown only to facilities employees/admins.
+  const cardItems = [
     createImageCard({
       title: 'Send Mail',
       description: 'Register a new mail item and generate a tracking label for internal delivery',
@@ -183,13 +185,20 @@ export default defineRoute((config) => {
       imageSrc: MY_MAIL_IMAGE_URL,
       path: 'my-mail',
     }),
-    createImageCard({
-      title: 'Facilities Hub',
-      description: 'Process incoming mail, scan QR labels, and route items across offices',
-      imageSrc: FACILITIES_IMAGE_URL,
-      path: 'facilities',
-    }),
-  ], { class: 'landing-page__cards' })
+  ]
+
+  if (isFacilitiesEmployee()) {
+    cardItems.push(
+      createImageCard({
+        title: 'Facilities Hub',
+        description: 'Process incoming mail, scan QR labels, and route items across offices',
+        imageSrc: FACILITIES_IMAGE_URL,
+        path: 'facilities',
+      }),
+    )
+  }
+
+  const cards = new Container(cardItems, { class: 'landing-page__cards' })
 
   return [
     new Container([sidebar, cards], { class: 'landing-page' }),

@@ -16,9 +16,13 @@ import {
 
 import { createNavbar } from '../../../components/navbar.js'
 import { LIST_LOCATIONS } from '../../../utils/constants.js'
+import { guardAccess } from '../../../utils/access.js'
 
 export default defineRoute(async (config) => {
   config.setRouteTitle('Manage Locations')
+
+  // Facilities route: admin access required
+  if (!guardAccess('ADMIN')) return []
 
   const siteApi = new SiteApi()
 
