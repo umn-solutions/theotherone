@@ -3,6 +3,11 @@ import { log } from './log.js'
 
 const REDIRECT_ACTION_PREFIX = 'SPARC_FormRedirect';
 
+// Empty-body POST actions (addviewfield / removeallviewfields) must NOT carry
+// spPOST's default odata=verbose Content-Type -- SharePoint tries to parse the
+// empty body as verbose OData and returns 400. Force nometadata for these.
+const ACTION_POST = { headers: { 'Accept': 'application/json;odata=nometadata', 'Content-Type': 'application/json;odata=nometadata' } };
+
 // Read a list's GUID (lowercased, braces stripped) for the redirect guard.
 async function getListId(listName) {
   const res = await spGET(`${_spPageContextInfo.webAbsoluteUrl}/_api/web/lists/getbytitle('${listName}')?$select=Id`);
@@ -84,22 +89,27 @@ export async function setFormsRedirect(listName, redirect, appUrl) {
 
 export async function ensureAdminView(listName) {
   const base = `${_spPageContextInfo.webAbsoluteUrl}/_api/web/lists/getbytitle('${listName}')`;
+  // SharePoint returns 404 OR 400 ("the specified view is invalid") when the
+  // view doesn't exist -- treat any existence-check failure as "not found",
+  // rather than branching on an inconsistent status code.
   try {
     await spGET(`${base}/views/getbytitle('Admin')`);
+    return; // already exists
   } catch (e) {
-    if (e.status && e.status !== 404) {
-      console.error('[views.ensureAdminView]', { listName, err: e });
-      throw e;
-    }
-    await spPOST(`${base}/views`, { data: { __metadata: { type: 'SP.View' }, Title: 'Admin', PersonalView: true, TabularView: true } });
-    log('  [view] Created Admin view');
+    console.warn('[views.ensureAdminView] Admin view not found, creating', { listName, status: e?.status });
   }
+  // PersonalView: true -> the Admin view is visible ONLY to the user who runs
+  // this (each admin who triggers setup gets their own private Admin view).
+  await spPOST(`${base}/views`, {
+    data: { __metadata: { type: 'SP.View' }, Title: 'Admin', PersonalView: true, TabularView: true },
+  });
+  log('  [view] Created personal Admin view');
 }
 
 export async function addFieldToAdminView(listName, fieldName) {
   const url = `${_spPageContextInfo.webAbsoluteUrl}/_api/web/lists/getbytitle('${listName}')/views/getbytitle('Admin')/ViewFields/addviewfield('${fieldName}')`;
   try {
-    await spPOST(url);
+    await spPOST(url, ACTION_POST);
     log('  [view] + ' + fieldName);
   } catch (e) {
     console.error('[views.addFieldToAdminView]', { listName, fieldName, err: e });
@@ -123,10 +133,10 @@ export function adminViewFieldsFor(schemaFields) {
 // "views/getbytitle('Admin')". Per-field failures are logged, not fatal.
 async function setViewFields(listName, viewPath, fieldNames) {
   const base = `${_spPageContextInfo.webAbsoluteUrl}/_api/web/lists/getbytitle('${listName}')/${viewPath}/viewfields`;
-  await spPOST(`${base}/removeallviewfields`);
+  await spPOST(`${base}/removeallviewfields`, ACTION_POST);
   for (const f of fieldNames) {
     try {
-      await spPOST(`${base}/addviewfield('${f}')`);
+      await spPOST(`${base}/addviewfield('${f}')`, ACTION_POST);
       log('  [view] + ' + f);
     } catch (e) {
       console.error('[views.setViewFields]', { listName, viewPath, field: f, err: e });

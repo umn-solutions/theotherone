@@ -147,6 +147,8 @@ export async function fullSetup(siteApi, scanResult, schema, appUrl) {
       await setQuickEdit(listName, false);
       await setFormsRedirect(listName, true, appUrl);
       await setListHidden(listName, true);
+      await setDefaultViewFields(listName);
+      await setAdminViewFields(listName, adminViewFieldsFor(schema[listName]));
     }
   }
   log('Full setup complete. Re-scanning...', 'success');
