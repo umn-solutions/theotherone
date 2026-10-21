@@ -5,6 +5,15 @@
 
 .mail-labels__sender-field { width: 100%; }
 
+/* Tracking-number search (external reprint): stacked input + search button */
+.mail-labels__tracking-search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+  width: 100%;
+  align-items: stretch;
+}
+
 /* Table grids: Print (4 cols) vs Reprint (8 cols) */
 .mail-labels__table--print { --table-columns: 2fr 1.2fr 1.2fr 0.6fr; }
 .mail-labels__table--reprint { --table-columns: 1.4fr 1.4fr 0.9fr 1fr 1fr 1.2fr 1fr 0.6fr; }
@@ -153,6 +162,96 @@
   body.posthub--print-a4 .qr-label__detail,
   body.posthub--print-a4 .qr-label__route { font-size: 28pt; }
   body.posthub--print-a4 .qr-label__label-id { font-size: 24pt; }
+}
+
+/* Mail Order signature document -- A4, paginating. Unlike the small-label mode
+   above, the print container flows as a normal block so long item lists break
+   cleanly across pages (each row + the signature block avoid mid-row breaks). */
+@media print {
+  /* The small-label mode escapes clipping via position:fixed. A paginating doc
+     must FLOW, so the container is static -- which means every ancestor that
+     clips (the scroll-locked route: overflow:hidden + height:100%) must be
+     unlocked, or the content is cut off at one page. */
+  html,
+  body.posthub--print-doc,
+  body.posthub--print-doc #root,
+  body.posthub--print-doc .nofbiz__route,
+  body.posthub--print-doc .posthub__page-content {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  body.posthub--print-doc .mail-labels__print-container {
+    position: static;
+    display: block !important;
+    width: auto;
+    min-height: 0;
+    padding: 0;
+    background: #fff;
+    color: #000;
+  }
+
+  body.posthub--print-doc .sig-doc__order { font-family: sans-serif; color: #000; }
+  body.posthub--print-doc .sig-doc__order + .sig-doc__order { break-before: page; }
+
+  body.posthub--print-doc .sig-doc__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8mm;
+    border-bottom: 2pt solid #000;
+    padding-bottom: 6pt;
+    margin-bottom: 8pt;
+  }
+  body.posthub--print-doc .sig-doc__brand {
+    margin: 0;
+    font-size: 10pt;
+    letter-spacing: 1pt;
+    text-transform: uppercase;
+  }
+  body.posthub--print-doc .sig-doc__order-title { margin: 2pt 0; font-size: 18pt; }
+  body.posthub--print-doc .sig-doc__detail { margin: 1pt 0; font-size: 10pt; }
+  body.posthub--print-doc .sig-doc__qr-target { flex-shrink: 0; width: 30mm; height: 30mm; }
+  body.posthub--print-doc .sig-doc__qr-target svg { width: 100%; height: 100%; }
+
+  body.posthub--print-doc .sig-doc__items { display: flex; flex-direction: column; }
+  body.posthub--print-doc .sig-doc__item-head,
+  body.posthub--print-doc .sig-doc__item-row {
+    display: grid;
+    grid-template-columns: 6mm 1.4fr 2fr 1.2fr 1.4fr;
+    gap: 6pt;
+    padding: 3pt 0;
+    font-size: 9pt;
+    border-bottom: 0.5pt solid #bbb;
+    break-inside: avoid;
+  }
+  body.posthub--print-doc .sig-doc__item-head {
+    font-weight: bold;
+    border-bottom: 1pt solid #000;
+  }
+
+  body.posthub--print-doc .sig-doc__signature {
+    margin-top: 12pt;
+    padding-top: 8pt;
+    border-top: 1pt solid #000;
+    break-inside: avoid;
+  }
+  body.posthub--print-doc .sig-doc__sign-field {
+    display: flex;
+    align-items: flex-end;
+    gap: 8pt;
+    margin-top: 12pt;
+    font-size: 10pt;
+  }
+  body.posthub--print-doc .sig-doc__sign-label { white-space: nowrap; }
+  body.posthub--print-doc .sig-doc__sign-line {
+    flex: 1;
+    height: 12pt;
+    border-bottom: 0.75pt solid #000;
+  }
+  body.posthub--print-doc .sig-doc__sign-line--short { flex: 0 0 30mm; }
 }
 
 @media (max-width: 768px) {

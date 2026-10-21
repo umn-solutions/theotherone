@@ -59,16 +59,16 @@ new Router([
 	"facilities/internal-mail/search-package", // Route: /facilities/internal-mail/search-package
 	"facilities/internal-mail/reprint-labels", // Route: /facilities/internal-mail/reprint-labels
 	"facilities/external-mail", // Route: /facilities/external-mail
-	"facilities/external-mail/register-mail", // Register hub (bulk / tracked / registered)
-	"facilities/external-mail/register-mail/bulk",
-	"facilities/external-mail/register-mail/tracked",
-	"facilities/external-mail/register-mail/registered",
-	"facilities/external-mail/dispatch",
+	"facilities/external-mail/register-mail", // Register hub (ingoing / outgoing)
+	"facilities/external-mail/register-mail/ingoing", // Ingoing hub (with / without tracking)
+	"facilities/external-mail/register-mail/ingoing/tracked", // Multipart tracked collection (QR + workflow)
+	"facilities/external-mail/register-mail/ingoing/untracked", // Untracked reporting log (ingoing)
+	"facilities/external-mail/register-mail/outgoing", // Untracked reporting log (outgoing)
 	"facilities/external-mail/reception",
 	"facilities/external-mail/delivery",
-	"facilities/external-mail/reroute",
+	"facilities/external-mail/reprint-labels", // Reprint QR labels by tracking number
 	"facilities/external-mail/search", // Route: /facilities/external-mail/search
-	"facilities/external-mail/config", // Admin-only: manage categories/sources/carriers
+	"facilities/external-mail/config", // Admin-only: manage categories/subcategories/sources
 	"facilities/manage-locations", // Route: /facilities/manage-locations
 	"facilities/reports", // Route: /facilities/reports
 	"facilities/maintenance", // Route: /facilities/maintenance

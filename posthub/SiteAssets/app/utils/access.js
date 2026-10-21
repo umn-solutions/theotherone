@@ -1,4 +1,4 @@
-import { CurrentUser, Router, SiteApi } from '../libs/nofbiz/nofbiz.base.js'
+import { CurrentUser, Router } from '../libs/nofbiz/nofbiz.base.js'
 import {
   FACILITIES_EMPLOYEE_GROUP,
   FACILITIES_ADMIN_GROUP,
@@ -7,96 +7,58 @@ import {
 /**
  * Access-control helpers.
  *
- * WHY NOT CurrentUser.accessLevel: the group hierarchy on CurrentUser resolves
- * membership from `getuserbyid(id)/groups`, which returns [] here because
- * ensureUser yields a stale duplicate-UIL principal (reproduced by the sandbox
- * interceptor, and a real on-prem condition). So `accessLevel` is always null.
- *
- * Instead we resolve the level ONCE at app startup via the EMAIL path
- * (`SiteApi.isUserInGroup(group, email)` -> `sitegroups/getbyname/users?$filter=Email`),
- * which is reliable in the sandbox AND on-prem. The resolved rank is cached, so the
- * route-time helpers below are SYNCHRONOUS -- no `await`, no email param, no REST
- * call per check. Bootstrap both the profile and this rank via the single
- * `initCurrentUser()` entry point below, awaited once in index.js before the
- * Router is constructed.
+ * CurrentUser already resolves the user's highest-privilege group label from the
+ * ACCESS_HIERARCHY passed to `initialize()` (see initCurrentUser). We read that
+ * label directly via `CurrentUser().accessLevel` -- no SiteApi.isUserInGroup, no
+ * email lookup, no per-check REST call. The getter is synchronous, so the helpers
+ * below are synchronous too.
  */
 
-// Ordered low -> high privilege. Drives the startup resolution order.
-// Users in neither group resolve to rank -1 ("regular user"): blocked from all
-// facilities routes, but the ungated send-mail / my-mail routes stay reachable.
-const ACCESS_HIERARCHY = [
+// Ordered low -> high privilege. Passed to CurrentUser.initialize(); the getter
+// `accessLevel` returns the groupLabel of the highest-privilege group the user is
+// in, or null. A user in neither group -> accessLevel null -> rank 0 ("regular
+// user"): blocked from facilities routes, while the ungated send-mail / my-mail /
+// home routes stay reachable.
+export const ACCESS_HIERARCHY = [
   { groupTitle: FACILITIES_EMPLOYEE_GROUP, groupLabel: 'EMPLOYEE' },
   { groupTitle: FACILITIES_ADMIN_GROUP, groupLabel: 'ADMIN' },
 ]
 
 // Numeric privilege rank per access label. Used for ">= level" comparisons so a
-// higher group (ADMIN) always satisfies a lower requirement (EMPLOYEE), even when
-// the user is not literally a member of the lower SharePoint group.
+// higher group (ADMIN) always satisfies a lower requirement (EMPLOYEE).
 const RANK = { EMPLOYEE: 1, ADMIN: 2 }
 
-// Cached privilege rank of the current user. -1 until resolveAccess() resolves it,
-// which also means "no access" if resolution fails.
-let _rank = -1
-
 /**
- * One-shot user bootstrap. Loads the CurrentUser profile, then resolves the access
- * rank. Call once in index.js, before constructing the Router -- this is the single
- * entry point; nothing else should call CurrentUser.initialize() or resolveAccess().
- *
- * Why two sequential REST passes and not one: `CurrentUser.initialize()` populates
- * the profile (including the picker-canonical email) but derives its own group
- * collection from `getuserbyid(id)/groups`, which returns [] here (stale principal)
- * -- so `accessLevel` is null. `resolveAccess()` then reuses the now-known email with
- * the reliable `sitegroups` member lookup. The second pass needs the email from the
- * first, so they cannot collapse into one call -- but callers only touch this function.
- *
+ * Initialize the CurrentUser singleton with the access hierarchy. Call once in
+ * index.js, before constructing the Router. `CurrentUser.accessLevel` is resolved
+ * as part of this, so the helpers below work synchronously afterwards.
  * @returns {Promise<CurrentUser>} the initialized singleton
  */
 export async function initCurrentUser() {
-  await new CurrentUser().initialize(ACCESS_HIERARCHY)
-  await resolveAccess()
-  return new CurrentUser()
+  return new CurrentUser().initialize(ACCESS_HIERARCHY)
+}
+
+// Current user's privilege rank from accessLevel (0 = none / not a facilities group).
+function currentRank() {
+  return RANK[new CurrentUser().accessLevel] ?? 0
 }
 
 /**
- * Resolve the current user's access rank via the email path and cache it.
- * Internal -- invoked by initCurrentUser(). Idempotent.
- * @returns {Promise<void>}
+ * Whether the current user's access level is one of the facilities levels
+ * (EMPLOYEE or ADMIN). Synchronous.
  */
-async function resolveAccess() {
-  _rank = -1
-  const email = new CurrentUser().get('email')
-  if (!email) {
-    console.warn('[access] no current-user email; access defaults to none')
-    return
-  }
-  const api = new SiteApi()
-  // Check from highest privilege down; the first group the user belongs to wins.
-  for (let i = ACCESS_HIERARCHY.length - 1; i >= 0; i--) {
-    const { groupTitle, groupLabel } = ACCESS_HIERARCHY[i]
-    try {
-      if (await api.isUserInGroup(groupTitle, email)) {
-        _rank = RANK[groupLabel]
-        break
-      }
-    } catch (err) {
-      console.error('[access] isUserInGroup failed for group ' + groupTitle, err)
-    }
-  }
-}
-
-/** Whether the current user is a Facilities employee or above (synchronous). */
 export function isFacilitiesEmployee() {
-  return _rank >= RANK.EMPLOYEE
+  return currentRank() >= RANK.EMPLOYEE
 }
 
-/** Whether the current user is a Facilities admin / manager (synchronous). */
+/** Whether the current user's access level is ADMIN. Synchronous. */
 export function isFacilitiesAdmin() {
-  return _rank >= RANK.ADMIN
+  return currentRank() >= RANK.ADMIN
 }
 
 /**
- * Route guard. Call at the very top of a gated route's `defineRoute` callback:
+ * Route guard. Call as the FIRST statement in a gated route's `defineRoute`
+ * callback:
  *
  *   if (!guardAccess('EMPLOYEE')) return []
  *
@@ -109,7 +71,7 @@ export function isFacilitiesAdmin() {
  * @returns {boolean} true if the current user meets the level
  */
 export function guardAccess(minLevel) {
-  const allowed = _rank >= RANK[minLevel]
+  const allowed = currentRank() >= RANK[minLevel]
   if (!allowed) {
     console.warn('[access] blocked route access; required level:', minLevel)
     Router.unauthorized()

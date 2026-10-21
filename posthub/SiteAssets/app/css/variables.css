@@ -10,6 +10,7 @@
   --posthub-status-pending: #939fa6;
   --posthub-status-in-transit: #f1875a;
   --posthub-status-arrived: #009fb1;
+  --posthub-status-awaiting-signature: #7a5bd6;
   --posthub-status-delivered: #0f7164;
 
   /* ===================================

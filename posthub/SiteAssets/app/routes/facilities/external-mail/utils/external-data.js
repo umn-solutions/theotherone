@@ -1,10 +1,11 @@
 import {
   LIST_CATEGORIES,
+  LIST_SUBCATEGORIES,
   LIST_LOCATIONS,
   LIST_EXTERNAL_SOURCES,
-  LIST_CARRIERS,
 } from '../../../../utils/constants.js'
 import { fetchItemsAcrossLists } from '../../../../utils/mail-context.js'
+import { makeTrackingId } from '../../../../utils/tracking-id.js'
 
 /**
  * Shared data-access helpers for the External Mail routes.
@@ -15,18 +16,10 @@ import { fetchItemsAcrossLists } from '../../../../utils/mail-context.js'
 export { fetchItemsAcrossLists }
 
 /**
- * Build a human-readable sequential id: `PREFIX-YYYYMMDD-XXXXX`.
- * Shared by tracking-number generation (registerForm) and bulk BatchId generation.
- *
- * @param {string} prefix
- * @param {Date} [date=new Date()]
- * @returns {string}
+ * Collision-safe tracking id `PREFIX-YYYYMMDD-<unique>`. Kept as a named re-export
+ * (callers: tracked/log forms + BatchId) -- real logic lives in utils/tracking-id.js.
  */
-export function makeSequentialId(prefix, date = new Date()) {
-  const datePart = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`
-  const sequence = String(Math.floor(Math.random() * 100000)).padStart(5, '0')
-  return `${prefix}-${datePart}-${sequence}`
-}
+export const makeSequentialId = makeTrackingId
 
 /**
  * Active Title values from a simple {Title, IsActive} option list, sorted A-Z.
@@ -51,8 +44,50 @@ export const loadCategoryOptions = (siteApi) => loadActiveTitles(siteApi, LIST_C
 /** Active external source titles (for Source dropdowns). */
 export const loadSourceOptions = (siteApi) => loadActiveTitles(siteApi, LIST_EXTERNAL_SOURCES)
 
-/** Active carrier titles (for Carrier dropdowns). */
-export const loadCarrierOptions = (siteApi) => loadActiveTitles(siteApi, LIST_CARRIERS)
-
 /** Active location titles (for destination/location dropdowns). */
 export const loadLocationOptions = (siteApi) => loadActiveTitles(siteApi, LIST_LOCATIONS)
+
+/**
+ * Suggestion pool for the single "From / To" party field (ingoing sender /
+ * outgoing destination). Reuses the External Sources config list; the combo is
+ * `allowCreate` so staff can type parties not in the list.
+ */
+export const loadPartyOptions = (siteApi) => loadSourceOptions(siteApi)
+
+/**
+ * Load active subcategories grouped by their parent category, as
+ * `{ [ParentCategory]: string[] }`. Call once per form; feed the result to
+ * getSubcategoryOptions() for the dependent dropdown. Empty object on failure.
+ * @param {object} siteApi
+ * @returns {Promise<Record<string, string[]>>}
+ */
+export async function loadSubcategoryMap(siteApi) {
+  try {
+    const items = await siteApi.list(LIST_SUBCATEGORIES).getItems(
+      { IsActive: 'true' },
+      { orderBy: { field: 'Title', ascending: true } },
+    )
+    const map = {}
+    for (const it of items) {
+      const parent = it.ParentCategory
+      if (!parent) continue
+      if (!map[parent]) map[parent] = []
+      map[parent].push(it.Title)
+    }
+    return map
+  } catch (err) {
+    console.error('[external-mail] failed to load ' + LIST_SUBCATEGORIES, err)
+    return {}
+  }
+}
+
+/**
+ * SubCategory options for a given Category (dependent dropdown), read from a map
+ * built by loadSubcategoryMap(). Unknown/empty category yields [].
+ * @param {Record<string, string[]>} map
+ * @param {string} category
+ * @returns {string[]}
+ */
+export function getSubcategoryOptions(map, category) {
+  return (map && category && map[category]) || []
+}

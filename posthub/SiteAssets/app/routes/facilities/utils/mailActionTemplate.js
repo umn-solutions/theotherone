@@ -22,7 +22,7 @@ import { INTERNAL_MAIL, fetchItemsAcrossLists } from '../../../utils/mail-contex
 import { createPackageTable } from '../../../utils/package-table.js'
 import {
   trackingIdColumn, statusBadgeColumn, currentLocationColumn,
-  destinationColumn, senderColumn, recipientColumn,
+  destinationColumn, senderColumn, recipientColumn, packageDetailsColumn,
 } from '../../../utils/package-table-columns.js'
 import { getHubLocation, isHubLocationSet } from './hubLocation.js'
 
@@ -38,6 +38,10 @@ import { getHubLocation, isHubLocationSet } from './hubLocation.js'
  * @param {(pkg: object, selectedLocation: string) => string | null} options.getTargetStatus - Returns new status, or null to skip
  * @param {(pkg: object, newStatus: string, now: string) => object} [options.extraUpdateFields] - Additional fields for updateItem
  * @param {boolean} [options.requireSmartCard=false] - When true, prompt for smart-card scan before bulk update; value is written to SmartCardId on each package
+ * @param {(pkg: object, targetStatus: string) => boolean} [options.smartCardWhen] - Per-item smart-card predicate; when provided it replaces the blanket requireSmartCard. The card is prompted once if ANY scanned item needs it, and written only to items for which this returns true.
+ * @param {(results: {pkg: object, newStatus: string}[], helpers: { printContainer: object }) => void | Promise<void>} [options.afterUpdate] - Called after the bulk update with the updated items + a hidden print container; used e.g. to print a document for a transition.
+ * @param {(pkg: object) => boolean} [options.requiresIndividual] - Items matching this cannot be bulk-processed. If any is scanned alongside other items, only these are shown with a blocking message (no bulk update).
+ * @param {string} [options.individualMessage] - Message shown when a bulk scan is blocked by requiresIndividual items.
  * @param {object} [options.ctx=INTERNAL_MAIL] - Mail context (which lists/timeline/hub path). Defaults to internal mail.
  * @returns {Promise<[object, object]>} [navbar, contentArea]
  */
@@ -49,6 +53,10 @@ export async function createMailActionRoute(config, {
   getTargetStatus,
   extraUpdateFields,
   requireSmartCard = false,
+  smartCardWhen = null,
+  afterUpdate = null,
+  requiresIndividual = null,
+  individualMessage = 'Some scanned items must be processed one at a time and cannot be included in a bulk update. Scan them individually.',
   ctx = INTERNAL_MAIL,
 }) {
   config.setRouteTitle(title)
@@ -321,7 +329,16 @@ export async function createMailActionRoute(config, {
   }
 
   async function handleBulkUpdate() {
-    if (requireSmartCard) {
+    const newLocation = getHubLocation()
+
+    // Per-item target + smart-card decision, computed BEFORE any prompt so the
+    // prompt only appears when a scanned item actually needs a card.
+    const needsCard = (pkg, target) =>
+      smartCardWhen ? !!smartCardWhen(pkg, target) : requireSmartCard
+    const plan = scannedPackages.map((pkg) => ({ pkg, target: getTargetStatus(pkg, newLocation) }))
+    const anyNeedsCard = plan.some(({ pkg, target }) => target !== null && needsCard(pkg, target))
+
+    if (anyNeedsCard) {
       const card = await requestSmartCardScan()
       if (!card) {
         Toast.info('Delivery cancelled')
@@ -330,8 +347,6 @@ export async function createMailActionRoute(config, {
       }
       smartCardValue = card
     }
-
-    const newLocation = getHubLocation()
 
     const comment = (noteField.value || '').trim()
     if (comment.length > NOTE_MAX_LENGTH) {
@@ -345,12 +360,12 @@ export async function createMailActionRoute(config, {
     try {
       const changedBy = UserIdentity.fromCurrentUser(user)
       const statusCounts = {}
+      const updatedResults = []
       let updatedCount = 0
       let skippedCount = 0
 
-      for (const pkg of scannedPackages) {
+      for (const { pkg, target: newStatus } of plan) {
         const now = new Date().toISOString()
-        const newStatus = getTargetStatus(pkg, newLocation)
 
         if (newStatus === null) {
           skippedCount++
@@ -367,7 +382,7 @@ export async function createMailActionRoute(config, {
           Object.assign(updateFields, extraUpdateFields(pkg, newStatus, now))
         }
 
-        if (requireSmartCard && smartCardValue) {
+        if (smartCardValue && needsCard(pkg, newStatus)) {
           updateFields.SmartCardId = smartCardValue
         }
 
@@ -387,7 +402,18 @@ export async function createMailActionRoute(config, {
         await siteApi.list(ctx.timelineList).createItem(timelineEntry)
 
         statusCounts[newStatus] = (statusCounts[newStatus] || 0) + 1
+        updatedResults.push({ pkg, newStatus })
         updatedCount++
+      }
+
+      // Post-update hook (e.g. print a signature document for handed-off items).
+      // Isolated so a print failure never breaks the confirmed update.
+      if (afterUpdate && updatedResults.length) {
+        try {
+          await afterUpdate(updatedResults, { printContainer })
+        } catch (err) {
+          console.error('[mailAction] afterUpdate hook failed', err)
+        }
       }
 
       const summary = Object.entries(statusCounts)
@@ -447,6 +473,47 @@ export async function createMailActionRoute(config, {
       tableContainer.children = [prompt, hiddenTextareaContainer]
       attachScanListeners()
     } else {
+      // Bulk guard: if any scanned item can't be bulk-processed (e.g. signature
+      // flow) and it was scanned alongside others, show ONLY those items + a
+      // message, and block the bulk update until they're handled individually.
+      const individual = requiresIndividual ? scannedPackages.filter(requiresIndividual) : []
+      if (individual.length > 0 && scannedPackages.length > 1) {
+        const warn = new Container([
+          new Container([
+            new Text('Cannot process in bulk', { type: 'h2', class: 'posthub__prompt-title' }),
+            new Text(individualMessage, { type: 'p', class: 'posthub__prompt-subtitle' }),
+          ], { class: 'posthub__prompt-content' }),
+        ], { class: 'posthub__prompt posthub__prompt--warning' })
+
+        const warnTable = createPackageTable({
+          columns: [
+            trackingIdColumn(),
+            statusBadgeColumn(),
+            currentLocationColumn(),
+            destinationColumn(),
+            senderColumn(),
+            recipientColumn(),
+            packageDetailsColumn(),
+          ],
+          packages: individual,
+          onRowClick: showDetailPanel,
+          tableClass: 'mail-action__table',
+        })
+
+        const clearBtn = new Button('Clear & Scan Individually', {
+          onClickHandler: () => {
+            scannedPackages = []
+            updateView()
+            attachScanListeners()
+          },
+          class: 'posthub__scan-btn',
+        })
+
+        tableContainer.children = [warn, warnTable, clearBtn, hiddenTextareaContainer]
+        focusTextarea()
+        return
+      }
+
       const locationLabel = new Container([
         new Text(`Operating from: ${getHubLocation()}`, {
           type: 'span',
@@ -481,6 +548,7 @@ export async function createMailActionRoute(config, {
           destinationColumn(),
           senderColumn(),
           recipientColumn(),
+          packageDetailsColumn(),
         ],
         packages: scannedPackages,
         onRowClick: showDetailPanel,
@@ -496,10 +564,14 @@ export async function createMailActionRoute(config, {
   updateView()
   attachRefocusListener()
 
+  // Hidden container for any document the afterUpdate hook prints (empty otherwise).
+  const printContainer = new Container([], { class: 'mail-labels__print-container' })
+
   const contentArea = new Container([
     pageHeader,
     tableContainer,
     pageLoader,
+    printContainer,
   ], { class: 'posthub__page-content' })
 
   return [navbar, contentArea]

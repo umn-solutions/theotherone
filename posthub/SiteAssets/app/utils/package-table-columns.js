@@ -1,5 +1,6 @@
 import { Container, Text, __dayjs } from '../libs/nofbiz/nofbiz.base.js'
 import { getUserDisplayName, getLocationValue } from './user-helpers.js'
+import { DIRECTION_LABELS } from './constants.js'
 
 export function trackingIdColumn() {
   return {
@@ -23,6 +24,16 @@ export function statusBadgeColumn() {
         }),
       ], { class: 'posthub__table-cell' })
     },
+  }
+}
+
+export function directionColumn() {
+  return {
+    label: 'Direction',
+    render: (pkg) => new Text(
+      pkg.Direction ? (DIRECTION_LABELS[pkg.Direction] || pkg.Direction) : '--',
+      { type: 'span', class: 'posthub__table-cell' },
+    ),
   }
 }
 
@@ -56,8 +67,15 @@ export function recipientColumn() {
 
 export function packageDetailsColumn() {
   return {
-    label: 'Package Details',
-    render: (pkg) => new Text(pkg.PackageDetails || '--', { type: 'span', class: 'posthub__table-cell' }),
+    label: 'Mail Details',
+    render: (pkg) => {
+      const value = pkg.PackageDetails || '--'
+      return new Text(value, {
+        type: 'span',
+        class: 'posthub__table-cell posthub__table-cell--truncate',
+        title: value,
+      })
+    },
   }
 }
 

@@ -173,6 +173,46 @@
   align-content: start;
 }
 
+/* Top filter-bar variant: filters span the full page width above the results so
+   the table below gets the whole width (columns stop wrapping). Used by the
+   internal + external mail list views. Reports keeps the default left sidebar. */
+.posthub__filter-sidebar--top {
+  min-width: 0;
+  width: 100%;
+  flex-shrink: 0;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--space-l);
+  border-right: none;
+  border-bottom: var(--stroke-thin) solid var(--color-stroke-subtle);
+}
+
+.posthub__filter-sidebar--top .posthub__filter-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-sNudge) var(--space-xxl);
+}
+
+.posthub__filter-sidebar--top .posthub__filter-group {
+  flex: 1 1 13rem;
+  min-width: 12rem;
+  max-width: 22rem;
+}
+
+/* Section headings break to their own full-width line within the flex bar. */
+.posthub__filter-sidebar--top .posthub__section-heading {
+  flex: 0 0 100%;
+}
+
+/* Clear / Export sit on the Date Range line, pushed right and aligned with the
+   date input (bottom of the label+input group). */
+.posthub__filter-sidebar--top .posthub__button-row {
+  margin-left: auto;
+  align-self: flex-end;
+  padding-top: 0;
+}
+
 .posthub__section-heading {
   grid-column: 1 / -1;
   font-size: 0.6875rem;
@@ -217,6 +257,8 @@
     padding: var(--space-l);
   }
   .posthub__filter-grid { grid-template-columns: 1fr; }
+  /* Top bar is not a scroll-capped side panel -- let it size to its content. */
+  .posthub__filter-sidebar--top { max-height: none; }
 }
 
 /* ===================================
@@ -259,6 +301,7 @@
 .posthub__status-badge--in-transit { background: var(--posthub-status-in-transit); }
 .posthub__status-badge--arrived { background: var(--posthub-status-arrived); }
 .posthub__status-badge--delivered { background: var(--posthub-status-delivered); }
+.posthub__status-badge--awaiting-signature { background: var(--posthub-status-awaiting-signature); }
 
 /* ===================================
    Tables
@@ -329,6 +372,10 @@
   white-space: nowrap;
 }
 
+.posthub__table-cell--truncate {
+  max-width: 220px;
+}
+
 /* Select column (createPackageTable selectable mode) */
 .posthub__table-checkbox-cell {
   justify-content: center;
@@ -366,6 +413,22 @@
   font-weight: var(--font-weight-semibold);
   color: var(--color-fg-primary);
   margin: 0;
+}
+
+/* Inline warning prompt (e.g. bulk blocked by signature-flow items) -- sits above
+   a table rather than filling the viewport, with an amber accent. */
+.posthub__prompt--warning {
+  height: auto;
+  padding: var(--space-l) 0;
+}
+
+.posthub__prompt--warning .posthub__prompt-content {
+  max-width: 44rem;
+  border-top: 4px solid var(--color-warning-primary);
+}
+
+.posthub__prompt--warning .posthub__prompt-title {
+  color: var(--color-warning-fg);
 }
 
 .posthub__prompt-subtitle {
@@ -521,3 +584,294 @@
   .posthub__prompt-content { padding: var(--space-xxxl) var(--space-xxl); }
   .posthub__bulk-bar { flex-direction: column; align-items: stretch; }
 }
+
+/* ===================================
+   External Mail -- register forms
+   (relocated here from per-route CSS so the shared logForm / trackedCollectionForm
+   builders and the direction/tracking hub routes all share one source of truth)
+   =================================== */
+
+/* Register hub wrappers (direction hub + ingoing tracking hub) */
+.external-mail-register__wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  background: var(--color-bg-secondary);
+  padding: var(--space-xxl) var(--space-xxxl);
+  overflow-y: auto;
+  gap: var(--space-l);
+}
+
+.external-mail-register__wrapper > * {
+  width: 100%;
+  max-width: 75rem;
+}
+
+/* Form card layout (tracked collection header card + success card) */
+.external-mail-form__wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  background: var(--color-bg-secondary);
+  padding: var(--space-xxl) var(--space-xxxl);
+  overflow-y: auto;
+}
+
+.external-mail-form__wrapper > * {
+  width: 100%;
+  max-width: 45rem;
+}
+
+.external-mail-form__body {
+  display: flex;
+  place-content: center;
+}
+
+.external-mail-form__content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-l);
+}
+
+.external-mail-form__form-section {
+  background: var(--color-bg-base);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xxl);
+  box-shadow: var(--shadow-8);
+}
+
+.external-mail-form__form-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.external-mail-form__form-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-mNudge);
+  margin-bottom: var(--space-sNudge);
+}
+
+.external-mail-form__form-title {
+  font-size: 1.125rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+}
+
+.external-mail-form__form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sNudge);
+}
+
+/* FieldLabel (position: left) + segmented toggle on one row */
+.external-mail-form__toggle-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-l);
+  flex-wrap: wrap;
+}
+
+/* Segmented two-option toggle (e.g. recipient In directory / Off-platform) */
+.external-mail-form__segmented {
+  display: inline-flex;
+  width: fit-content;
+  border: var(--stroke-thin) solid var(--color-stroke-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.external-mail-form__segmented .external-mail-form__seg-btn {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-fg-secondary);
+  box-shadow: none;
+  padding: var(--space-sNudge) var(--space-l);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.external-mail-form__segmented .external-mail-form__seg-btn:hover {
+  background: var(--color-bg-subtle);
+}
+
+.external-mail-form__segmented .external-mail-form__seg-btn--active,
+.external-mail-form__segmented .external-mail-form__seg-btn--active:hover {
+  background: var(--color-brand-primary);
+  color: var(--color-brand-fg);
+}
+
+.external-mail-form__form-section .form-control,
+.external-mail-form__form-section .nofbiz__combobox,
+.external-mail-form__form-section .nofbiz__textarea {
+  width: 100%;
+}
+
+/* Success card */
+.external-mail-form__success-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-l);
+  background: var(--color-bg-base);
+  border-radius: var(--radius-xl);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-8);
+}
+
+.external-mail-form__success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--color-brand-selected);
+  color: var(--color-brand-active);
+  font-size: 1.375rem;
+}
+
+.external-mail-form__success-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.external-mail-form__success-title {
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  margin: 0;
+}
+
+.external-mail-form__success-text {
+  font-size: var(--font-size-200);
+  color: var(--color-fg-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.external-mail-form__success-actions {
+  display: flex;
+  gap: var(--space-mNudge);
+  margin-top: var(--space-mNudge);
+}
+
+/* Editable multi-row grid (log forms + tracked collection items) */
+.external-mail-bulk__wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  background: var(--color-bg-secondary);
+  padding: var(--space-xxl) var(--space-xxxl);
+  overflow-y: auto;
+}
+
+.external-mail-bulk__wrapper > * {
+  width: 100%;
+  max-width: 75rem;
+}
+
+.external-mail-bulk__body {
+  display: flex;
+  place-content: center;
+}
+
+.external-mail-bulk__panel {
+  width: 100%;
+  background: var(--color-bg-base);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xxl);
+  box-shadow: var(--shadow-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-l);
+}
+
+.external-mail-bulk__grid {
+  display: grid;
+  gap: var(--space-mNudge);
+  align-items: center;
+}
+
+/* Log grid: Category | Subcategory | Quantity | Description | External party | remove */
+.external-mail-bulk__grid--log {
+  grid-template-columns: 1.1fr 1.1fr 0.6fr 1.7fr 1.3fr 2.5rem;
+}
+
+/* Tracked grid: Category | Subcategory | Description | From | Ext ID | remove */
+.external-mail-bulk__grid--tracked {
+  grid-template-columns: 1.1fr 1.1fr 1.7fr 1.3fr 1.3fr 2.5rem;
+}
+
+.external-mail-bulk__grid-header,
+.external-mail-bulk__grid-body,
+.external-mail-bulk__grid-row {
+  display: contents;
+}
+
+.external-mail-bulk__grid-label {
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg-secondary);
+  padding-bottom: var(--space-sNudge);
+  border-bottom: var(--stroke-thin) solid var(--color-stroke-subtle);
+}
+
+.external-mail-bulk__grid .form-control,
+.external-mail-bulk__grid .nofbiz__combobox,
+.external-mail-bulk__grid .nofbiz__textinput,
+.external-mail-bulk__grid .nofbiz__numberinput {
+  width: 100%;
+}
+
+.external-mail-bulk__remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  color: var(--color-fg-secondary);
+}
+
+.external-mail-bulk__remove-btn:hover {
+  color: var(--color-status-danger, #c0392b);
+}
+
+.external-mail-bulk__toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-mNudge);
+  padding-top: var(--space-mNudge);
+  border-top: var(--stroke-thin) solid var(--color-stroke-subtle);
+}
+
+@media (max-width: 768px) {
+  .external-mail-register__wrapper { padding: 1.25rem var(--space-l); }
+  .external-mail-form__wrapper { padding: 1.25rem var(--space-l); }
+  .external-mail-form__form-section { padding: 1.25rem; }
+  .external-mail-bulk__wrapper { padding: 1.25rem var(--space-l); }
+  .external-mail-bulk__panel { padding: 1.25rem; }
+  .external-mail-bulk__grid,
+  .external-mail-bulk__grid--log,
+  .external-mail-bulk__grid--tracked { grid-template-columns: 1fr; }
+  .external-mail-bulk__grid-header { display: none; }
+  .external-mail-bulk__grid-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-sNudge);
+    padding: var(--space-mNudge) 0;
+    border-bottom: var(--stroke-thin) solid var(--color-stroke-subtle);
+  }
+  .external-mail-bulk__toolbar { flex-direction: column; }
+}
+
+/* Signature-document (Mail Order handover) styles live in css/mail-workflow.css
+   under the `body.posthub--print-doc` print mode -- the doc is print-only. */

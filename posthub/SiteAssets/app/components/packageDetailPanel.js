@@ -16,8 +16,12 @@ import {
 } from "../utils/user-helpers.js";
 import {
 	LIST_TIMELINE_ENTRIES,
-	LIST_EXTERNAL_BULK,
+	LIST_EXTERNAL_LOG,
+	LIST_EXTERNAL_ITEMS,
+	LIST_EXTERNAL_PACKAGES,
 	STATUS_DESCRIPTIONS,
+	DIRECTION_LABELS,
+	MAIL_DIRECTIONS,
 } from "../utils/constants.js";
 
 /**
@@ -62,7 +66,10 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 	function resolveDisplayName(field) {
 		const name = getUserDisplayName(field);
 		const email = getUserEmail(field);
-		if (name && name !== email) return `${name} (${email})`;
+		// External parties (organizations) have a display name but no email --
+		// show the name alone rather than an empty "Name ()".
+		if (name && email && name !== email) return `${name} (${email})`;
+		if (name) return name;
 		return email || "N/A";
 	}
 
@@ -96,7 +103,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 		);
 	}
 
-	function buildBatchHeader() {
+	function buildBatchHeader(partyLabel) {
 		return new Container(
 			[
 				new Text("#", {
@@ -115,7 +122,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 					type: "span",
 					class: "posthub__batch-qty posthub__batch-header-cell",
 				}),
-				new Text("Destination", {
+				new Text(partyLabel, {
 					type: "span",
 					class: "posthub__batch-destination posthub__batch-header-cell",
 				}),
@@ -124,19 +131,29 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 		);
 	}
 
+	// Combine Category + SubCategory into one compact cell ("Category / Sub").
+	function categoryLabel(item) {
+		if (!item.Category) return "--";
+		return item.SubCategory ? `${item.Category} / ${item.SubCategory}` : item.Category;
+	}
+
 	function createBatchItem(item, index, currentPkg) {
 		const isCurrent = item.Id === currentPkg.Id;
+		// Route reads external -> office for ingoing, office -> external for outgoing.
+		const office = getLocationValue(item.InternalOffice) || "--";
+		const ext = item.ExternalParty || "--";
+		const route = item.Direction === "outgoing" ? `${office} -> ${ext}` : `${ext} -> ${office}`;
 		return new Container(
 			[
 				new Text(`${index + 1}.`, {
 					type: "span",
 					class: "posthub__batch-number",
 				}),
-				new Text(item.ItemName || item.Title || "", {
+				new Text(item.Description || item.Title || "", {
 					type: "span",
 					class: "posthub__batch-item",
 				}),
-				new Text(item.Category || "--", {
+				new Text(categoryLabel(item), {
 					type: "span",
 					class: "posthub__batch-category",
 				}),
@@ -144,7 +161,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 					type: "span",
 					class: "posthub__batch-qty",
 				}),
-				new Text(getLocationValue(item.Destination) || "--", {
+				new Text(route, {
 					type: "span",
 					class: "posthub__batch-destination",
 				}),
@@ -152,6 +169,27 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 			{
 				class: `posthub__batch-entry${isCurrent ? " posthub__batch-entry--current" : ""}`,
 			},
+		);
+	}
+
+	// A single line item (part) of a tracked collection. Rendered as a compact
+	// card -- the 650px panel is too narrow for a wide multi-column parts table.
+	function createPartItem(item, index) {
+		const meta = [categoryLabel(item)];
+		if (item.FromParty) meta.push(`From: ${item.FromParty}`);
+		if (item.ExternalTrackingId) meta.push(item.ExternalTrackingId);
+		return new Container(
+			[
+				new Text(`${index + 1}. ${item.Description || categoryLabel(item)}`, {
+					type: "span",
+					class: "posthub__parts-item-title",
+				}),
+				new Text(meta.join("  ·  "), {
+					type: "span",
+					class: "posthub__parts-item-meta",
+				}),
+			],
+			{ class: "posthub__parts-item" },
 		);
 	}
 
@@ -261,21 +299,23 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 			});
 	}
 
-	// Bulk mail is untracked (no Status/timeline). Render its own fields and, in
+	// Log mail is untracked (no Status/timeline). Render its own fields and, in
 	// place of the timeline, list every item registered in the same batch.
-	async function showBulk(pkg) {
+	async function showLog(pkg) {
+		const isIngoing = pkg.Direction === MAIL_DIRECTIONS.INGOING;
+		const externalRole = isIngoing ? "Sender" : "Recipient";
+		const internalRole = isIngoing ? "Recipient" : "Sender";
 		const fields = new Container(
 			[
 				createField("Tracking Number", pkg.Title),
-				createField("Item", pkg.ItemName || "N/A"),
+				...(pkg.Direction ? [createField("Direction", DIRECTION_LABELS[pkg.Direction] || pkg.Direction)] : []),
 				...(pkg.Category ? [createField("Category", pkg.Category)] : []),
+				...(pkg.SubCategory ? [createField("Subcategory", pkg.SubCategory)] : []),
 				createField("Quantity", pkg.Quantity || "N/A"),
 				createField("Description", pkg.Description || "N/A"),
-				createField("From", pkg.FromSource || "N/A"),
-				createField(
-					"Destination",
-					getLocationValue(pkg.Destination) || "N/A",
-				),
+				createField(`${externalRole} (external)`, pkg.ExternalParty || "N/A"),
+				createField(`${internalRole} (internal)`, resolveDisplayName(pkg.InternalContact)),
+				createField("Office", getLocationValue(pkg.InternalOffice) || "N/A"),
 				createField("Registered By", resolveDisplayName(pkg.RegisteredByEmail)),
 				...(pkg.BatchId ? [createField("Batch ID", pkg.BatchId)] : []),
 				...(pkg.Created
@@ -294,7 +334,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 			class: "posthub__batch-items",
 		});
 
-		// Bulk items carry no reprintable QR/tracking -- collapse any action footer.
+		// Log items carry no reprintable QR/tracking -- collapse any action footer.
 		if (footerContainer) {
 			footerContainer.children = [];
 			footerContainer.instance?.parent().css("display", "none");
@@ -316,7 +356,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 
 		try {
 			const batchItems = await siteApi
-				.list(LIST_EXTERNAL_BULK)
+				.list(LIST_EXTERNAL_LOG)
 				.getItems(
 					{ BatchId: pkg.BatchId },
 					{ orderBy: { field: "Title", ascending: true } },
@@ -325,7 +365,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 			itemsContainer.children =
 				batchItems.length > 0
 					? [
-							buildBatchHeader(),
+							buildBatchHeader("From / To"),
 							...batchItems.map((item, i) =>
 								createBatchItem(item, i, pkg),
 							),
@@ -348,9 +388,13 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 	}
 
 	async function show(pkg) {
-		if (pkg.__listName === LIST_EXTERNAL_BULK) {
-			return showBulk(pkg);
+		if (pkg.__listName === LIST_EXTERNAL_LOG) {
+			return showLog(pkg);
 		}
+
+		// A tracked external collection: one QR/tracking number (the header record)
+		// with its line items stored separately in the ExternalMailItems list.
+		const isTrackedCollection = pkg.__listName === LIST_EXTERNAL_PACKAGES;
 
 		const statusClass = (pkg.Status || "").replace(" ", "-");
 
@@ -379,6 +423,29 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 			);
 		}
 
+		// Off-platform (subsidiary) recipient: flag it, and for delivered items note
+		// the proof is the archived physical signed document (no smartcard).
+		if (pkg.OffPlatformRecipient === true || pkg.OffPlatformRecipient === "true") {
+			extraFields.push(createField("Recipient Type", "Off-platform (subsidiary)"));
+			if (pkg.Status === "delivered") {
+				extraFields.push(
+					new Container(
+						[
+							new Text(
+								[getIcon("checkbox-circle-line"), "Delivered via Signed Proof"],
+								{ type: "span", class: "posthub__detail-signature-note__title" },
+							),
+							new Text(
+								"Delivered by a courier to a subsidiary office. The signed proof document is archived in the facilities records, outside the platform.",
+								{ type: "p", class: "posthub__detail-signature-note__body" },
+							),
+						],
+						{ class: "posthub__detail-field posthub__detail-field--note posthub__detail-signature-note" },
+					),
+				);
+			}
+		}
+
 		const fields = new Container(
 			[
 				createField("Tracking Number", pkg.Title),
@@ -393,11 +460,12 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 					"Destination",
 					getLocationValue(pkg.DestinationLocation) || "N/A",
 				),
+				...(isTrackedCollection && pkg.Direction ? [createField("Direction", DIRECTION_LABELS[pkg.Direction] || pkg.Direction)] : []),
+				...(isTrackedCollection && pkg.ItemCount ? [createField("Items", pkg.ItemCount)] : []),
 				createField("Mail Details", pkg.PackageDetails || "N/A"),
 				...(pkg.Category ? [createField("Category", pkg.Category)] : []),
 				...(pkg.Source ? [createField("Source", pkg.Source)] : []),
 				...(pkg.ExternalTrackingId ? [createField("External Tracking ID", pkg.ExternalTrackingId)] : []),
-				...(pkg.Carrier ? [createField("Carrier", pkg.Carrier)] : []),
 				...extraFields,
 			],
 			{ class: "posthub__detail-fields" },
@@ -413,6 +481,14 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 			class: "posthub__timeline",
 		});
 
+		// Tracked collections show their line items (parts) above the timeline.
+		let partsLoader = null;
+		let partsContainer = null;
+		if (isTrackedCollection) {
+			partsLoader = new Loader([], { animation: "pulse" });
+			partsContainer = new Container([partsLoader], { class: "posthub__parts" });
+		}
+
 		if (footerContainer) {
 			const buttons = buildActionButtons(pkg);
 			footerContainer.children = buttons;
@@ -422,9 +498,49 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 				.css("display", buttons.length ? "" : "none");
 		}
 
-		contentContainer.children = [fields, timelineTitle, timelineContainer];
+		contentContainer.children = partsContainer
+			? [
+					fields,
+					new Text("Items in Collection", {
+						type: "h3",
+						class: "posthub__detail-section-title",
+					}),
+					partsContainer,
+					timelineTitle,
+					timelineContainer,
+				]
+			: [fields, timelineTitle, timelineContainer];
 		panel.open();
 		timelineLoader.enable();
+		if (partsLoader) partsLoader.enable();
+
+		if (partsContainer) {
+			try {
+				const parts = await siteApi
+					.list(LIST_EXTERNAL_ITEMS)
+					.getItems(
+						{ Title: pkg.Title },
+						{ orderBy: { field: "Created", ascending: true } },
+					);
+				partsContainer.children =
+					parts.length > 0
+						? parts.map((item, i) => createPartItem(item, i))
+						: [
+								new Text("No items recorded for this collection", {
+									type: "p",
+									class: "posthub__detail-empty",
+								}),
+							];
+			} catch (err) {
+				console.error("[packageDetailPanel] failed to load collection items", err);
+				partsContainer.children = [
+					new Text("Failed to load items", {
+						type: "p",
+						class: "posthub__detail-empty",
+					}),
+				];
+			}
+		}
 
 		try {
 			const timelineEntries = await siteApi

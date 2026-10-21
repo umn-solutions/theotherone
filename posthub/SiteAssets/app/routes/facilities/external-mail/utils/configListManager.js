@@ -3,6 +3,7 @@ import {
   View,
   Text,
   Button,
+  ComboBox,
   TextInput,
   FormField,
   Modal,
@@ -12,18 +13,44 @@ import {
 
 /**
  * Builds a self-contained CRUD manager for a simple {Title, IsActive} option list
- * (Categories / External Sources / Carriers), rendered as a tab: a new-item control
+ * (Categories / Subcategories / External Sources), rendered as a tab: a new-item control
  * on top and a scrollable flex-column list of options below. Titles are unique
  * (case-insensitive). Mirrors the Manage Locations activate/deactivate + delete flow.
  *
+ * Pass `parent: { options: string[], label }` to scope the list under a parent
+ * (e.g. SubCategories under a Category): a parent selector renders on top, and all
+ * ops are scoped to the selected parent via the ParentCategory field.
+ *
  * @param {object} siteApi
- * @param {object} opts { listName, singular, plural, key }
+ * @param {object} opts { listName, singular, plural, key, parent? }
  * @returns {{ tab: { key: string, label: string, view: object }, deleteModal: object, reload: () => Promise<void> }}
  */
-export function createConfigListManager(siteApi, { listName, singular, plural, key }) {
+export function createConfigListManager(siteApi, { listName, singular, plural, key, parent = null }) {
   let items = []
 
   const isActive = (it) => it.IsActive === true || it.IsActive === 'true'
+
+  // Optional parent scoping. When `parent` is provided, a parent selector renders
+  // above the add control and every op is scoped to the selected parent.
+  let selectedParent = ''
+  let parentSelector = null
+  if (parent) {
+    const parentField = new FormField({ value: '' })
+    const parentCombo = new ComboBox(parentField, parent.options, {
+      allowMultiple: false,
+      allowFiltering: true,
+      allowCreate: false,
+      placeholder: `Select ${(parent.label || 'parent').toLowerCase()}...`,
+      onSelectHandler: (sel) => {
+        selectedParent = typeof sel === 'string' ? sel : (sel?.value ?? '')
+        reload()
+      },
+    })
+    parentSelector = new Container([
+      new Text(parent.label || 'Parent', { type: 'label', class: 'external-mail-config__add-label' }),
+      parentCombo,
+    ], { class: 'external-mail-config__controls' })
+  }
 
   // -- New-item control (top of the tab) --
   const newField = new FormField({ value: '' })
@@ -65,10 +92,10 @@ export function createConfigListManager(siteApi, { listName, singular, plural, k
 
   function renderList() {
     if (items.length === 0) {
-      list.children = [new Text(`No ${plural.toLowerCase()} yet`, {
-        type: 'p',
-        class: 'external-mail-config__empty',
-      })]
+      const msg = parent && !selectedParent
+        ? `Select a ${(parent.label || 'parent').toLowerCase()} to manage its ${plural.toLowerCase()}`
+        : `No ${plural.toLowerCase()} yet`
+      list.children = [new Text(msg, { type: 'p', class: 'external-mail-config__empty' })]
       return
     }
     list.children = items
@@ -92,8 +119,15 @@ export function createConfigListManager(siteApi, { listName, singular, plural, k
   }
 
   async function reload() {
+    if (parent && !selectedParent) {
+      items = []
+      renderList()
+      return
+    }
     try {
-      items = await siteApi.list(listName).getItems()
+      items = parent
+        ? await siteApi.list(listName).getItems({ ParentCategory: selectedParent })
+        : await siteApi.list(listName).getItems()
     } catch (err) {
       console.error('[config] failed to load ' + listName, err)
       Toast.error(`Failed to load ${plural.toLowerCase()}`)
@@ -108,7 +142,11 @@ export function createConfigListManager(siteApi, { listName, singular, plural, k
       Toast.error(`Enter a ${singular.toLowerCase()} name`)
       return
     }
-    // Unique (case-insensitive) titles only.
+    if (parent && !selectedParent) {
+      Toast.error(`Select a ${(parent.label || 'parent').toLowerCase()} first`)
+      return
+    }
+    // Unique (case-insensitive) titles only, within the current scope.
     if (items.some((i) => i.Title.trim().toLowerCase() === val.toLowerCase())) {
       Toast.error(`${singular} "${val}" already exists`)
       return
@@ -116,7 +154,11 @@ export function createConfigListManager(siteApi, { listName, singular, plural, k
     addBtn.isLoading = true
     const loading = Toast.loading('Adding...')
     try {
-      await siteApi.list(listName).createItem({ Title: val, IsActive: 'true' })
+      await siteApi.list(listName).createItem(
+        parent
+          ? { Title: val, ParentCategory: selectedParent, IsActive: 'true' }
+          : { Title: val, IsActive: 'true' },
+      )
       newField.value = ''
       await reload()
       loading.success(`${singular} added`)
@@ -172,7 +214,7 @@ export function createConfigListManager(siteApi, { listName, singular, plural, k
     }
   }
 
-  const view = new View([controls, list], { class: 'external-mail-config__tab' })
+  const view = new View(parentSelector ? [parentSelector, controls, list] : [controls, list], { class: 'external-mail-config__tab' })
 
   return { tab: { key, label: plural, view }, deleteModal, reload }
 }

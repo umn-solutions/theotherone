@@ -1,8 +1,7 @@
 import {
   LIST_PACKAGES,
   LIST_TIMELINE_ENTRIES,
-  LIST_EXTERNAL_TRACKED,
-  LIST_EXTERNAL_REGISTERED,
+  LIST_EXTERNAL_PACKAGES,
   TRACKING_PREFIX,
   EXTERNAL_TRACKING_PREFIX,
 } from './constants.js'
@@ -13,8 +12,9 @@ import {
  * logic serves both internal mail and external mail without duplication.
  *
  * - listNames: lists the workflow reads/matches scanned tracking numbers against.
- *   External mail spans two lists (tracked + registered); items are tagged with
- *   `__listName` on read so writes target the correct list.
+ *   External tracked mail lives in one header list (ExternalMailPackages); item
+ *   details live in a separate lines list the workflow never touches. Items are
+ *   tagged with `__listName` on read so writes target the correct list.
  * - timelineList: shared audit list (TimelineEntries) keyed by tracking number.
  * - basePath: hub landing route; used for back links and the hub-location guard.
  * - labelSearchField/labelSearchNoun: which party the Print/Reprint search uses.
@@ -34,8 +34,8 @@ export const INTERNAL_MAIL = {
 
 export const EXTERNAL_MAIL = {
   key: 'external',
-  listNames: [LIST_EXTERNAL_TRACKED, LIST_EXTERNAL_REGISTERED],
-  primaryList: LIST_EXTERNAL_TRACKED,
+  listNames: [LIST_EXTERNAL_PACKAGES],
+  primaryList: LIST_EXTERNAL_PACKAGES,
   timelineList: LIST_TIMELINE_ENTRIES,
   trackingPrefix: EXTERNAL_TRACKING_PREFIX,
   basePath: 'facilities/external-mail',

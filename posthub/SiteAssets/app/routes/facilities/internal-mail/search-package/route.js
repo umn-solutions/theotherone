@@ -21,7 +21,7 @@ import { getLocationValue, getUserDisplayName } from '../../../../utils/user-hel
 import { createPackageTable } from '../../../../utils/package-table.js'
 import {
   trackingIdColumn, statusBadgeColumn, currentLocationColumn,
-  destinationColumn, senderColumn, recipientColumn, dateColumn,
+  destinationColumn, senderColumn, recipientColumn, dateColumn, packageDetailsColumn,
 } from '../../../../utils/package-table-columns.js'
 import { createEmptyState } from '../../../../utils/empty-state.js'
 import { parseFilterDate, toISOStart, toISOEnd, defaultDateFrom, defaultDateTo } from '../../../../utils/date-helpers.js'
@@ -69,6 +69,7 @@ export default defineRoute((config) => {
       'Destination': getLocationValue(pkg.DestinationLocation),
       'Sender': getUserDisplayName(pkg.Sender),
       'Recipient': getUserDisplayName(pkg.Recipient),
+      'Mail Details': pkg.PackageDetails || '',
       'Last Modified': pkg.LastModifiedDate ? __dayjs(pkg.LastModifiedDate).format('DD/MM/YYYY') : '',
     }))
   }
@@ -124,7 +125,7 @@ export default defineRoute((config) => {
     }),
   ], { class: 'posthub__page-header' })
 
-  const filterSection = new Container([], { class: 'posthub__filter-sidebar' })
+  const filterSection = new Container([], { class: 'posthub__filter-sidebar posthub__filter-sidebar--top' })
   const resultsContainer = new Container([], { class: 'search-package__results' })
   const pageLoader = new Loader(new Text('Loading...'), { animation: 'pulse' })
 
@@ -173,6 +174,7 @@ export default defineRoute((config) => {
       destinationColumn(),
       senderColumn(),
       recipientColumn(),
+      packageDetailsColumn(),
       dateColumn('Last Modified', 'LastModifiedDate'),
     ]
 
@@ -259,6 +261,7 @@ export default defineRoute((config) => {
                 'Destination': 22,
                 'Sender': 28,
                 'Recipient': 28,
+                'Mail Details': 30,
                 'Last Modified': 16,
               },
             })
@@ -275,7 +278,7 @@ export default defineRoute((config) => {
 
     buttonRowSlot.children = [clearButton, exportButton]
 
-    filterSection.children = [filterGrid, buttonRowSlot]
+    filterSection.children = [filterGrid]
 
     await fetchPackages(filters.dateFrom, filters.dateTo)
     pageLoader.disable()

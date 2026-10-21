@@ -24,16 +24,15 @@ export default defineRoute((config) => {
       }),
       new Text('Register Mail', { type: 'h1', class: 'posthub__page-title' }),
     ], { class: 'posthub__title-with-icon' }),
-    new Text('Choose how to register incoming external mail', {
+    new Text('Choose a direction to register external mail', {
       type: 'p',
       class: 'posthub__page-subtitle',
     }),
   ], { class: 'posthub__page-header' })
 
   const cards = [
-    { title: 'Register Bulk', desc: 'Log external mail items in bulk for reporting. These items are not tracked.', route: 'bulk' },
-    { title: 'Register Tracked', desc: 'Register a single external mail item, then print its QR label to track it internally.', route: 'tracked' },
-    { title: 'Register Registered / Legal', desc: 'Register externally-tracked mail (registered legal letters) with an external tracking ID, then print its QR label.', route: 'registered' },
+    { title: 'Ingoing Mail', desc: 'Mail arriving from an external source. Choose tracked (QR label + workflow) or a quick untracked log.', route: 'ingoing' },
+    { title: 'Outgoing Mail', desc: 'Mail leaving the building to an external destination. Logged for reporting; never tracked.', route: 'outgoing' },
   ]
 
   const grid = new Container(

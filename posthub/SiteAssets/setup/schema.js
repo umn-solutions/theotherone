@@ -9,22 +9,6 @@
 
 const titleField = { title: 'Title', builtIn: true, indexed: true }
 
-// Common columns shared by the tracked mail lists (Packages + external tracked lists).
-const trackedMailFields = [
-  { title: 'Category', indexed: true },
-  { title: 'Sender' },
-  { title: 'Recipient' },
-  { title: 'Status', indexed: true },
-  { title: 'CurrentLocation' },
-  { title: 'DestinationLocation' },
-  { title: 'PackageDetails', multiline: true },
-  { title: 'SenderEmail', indexed: true },
-  { title: 'RecipientEmail', indexed: true },
-  { title: 'SubmissionDate', indexed: true },
-  { title: 'LastModifiedDate', indexed: true },
-  { title: 'SmartCardId' },
-]
-
 export const SCHEMA = {
   Locations: [
     titleField,
@@ -36,13 +20,15 @@ export const SCHEMA = {
     { title: 'IsActive', indexed: true },
   ],
 
-  // External Mail option lists (managed via the External Mail config page)
-  ExternalSources: [
+  // Subcategories, each linked to a parent Category (managed on the config page).
+  SubCategories: [
     titleField,
+    { title: 'ParentCategory', indexed: true },
     { title: 'IsActive', indexed: true },
   ],
 
-  Carriers: [
+  // External Mail option lists (managed via the External Mail config page)
+  ExternalSources: [
     titleField,
     { title: 'IsActive', indexed: true },
   ],
@@ -70,33 +56,54 @@ export const SCHEMA = {
     { title: 'Notes' },
   ],
 
-  // Untracked bulk external mail (reporting log only)
-  ExternalMailBulk: [
+  // --- External Mail (fresh master-detail model) ---
+
+  // Tracked collection HEADER -- one row per QR / tracking number. This is the
+  // record the shared workflow engine advances (scan/dispatch/reception/delivery/
+  // reroute); per-item details live in ExternalMailItems. Only ingoing mail is tracked.
+  ExternalMailPackages: [
     titleField,
-    { title: 'ItemName' },
+    { title: 'Direction', indexed: true },
+    { title: 'OffPlatformRecipient', indexed: true }, // 'true' => recipient not on platform (subsidiary exception)
+    { title: 'Sender' },
+    { title: 'Recipient' },
+    { title: 'SenderEmail', indexed: true },
+    { title: 'RecipientEmail', indexed: true },
+    { title: 'Status', indexed: true },
+    { title: 'CurrentLocation' },
+    { title: 'DestinationLocation' },
+    { title: 'PackageDetails', multiline: true },
+    { title: 'Categories', multiline: true }, // JSON array: distinct item categories (display/filter summary)
+    { title: 'ItemCount' },
+    { title: 'SubmissionDate', indexed: true },
+    { title: 'LastModifiedDate', indexed: true },
+    { title: 'SmartCardId' },
+  ],
+
+  // Tracked collection LINE ITEMS (parts). Title = FK to ExternalMailPackages.Title.
+  ExternalMailItems: [
+    titleField,
     { title: 'Category', indexed: true },
+    { title: 'SubCategory' },
+    { title: 'Description', multiline: true },
+    { title: 'FromParty' },
+    { title: 'ExternalTrackingId', indexed: true },
+  ],
+
+  // Untracked reporting log (ingoing + outgoing). One row per logged item; a single
+  // "Submit" shares one BatchId across its rows. No QR, no workflow.
+  ExternalMailLog: [
+    titleField,
+    { title: 'Direction', indexed: true },
+    { title: 'Category', indexed: true },
+    { title: 'SubCategory' },
     { title: 'Quantity' },
     { title: 'Description', multiline: true },
-    { title: 'FromSource' },
-    { title: 'Destination' },
+    { title: 'ExternalParty' },   // external org (sender for ingoing / recipient for outgoing)
+    { title: 'InternalContact' }, // internal person (UserIdentity JSON)
+    { title: 'InternalOffice' },  // internal office (Locations title)
     { title: 'RegisteredByEmail', indexed: true },
     { title: 'BatchId', indexed: true },
-  ],
-
-  // Internally-tracked external mail (mirrors Packages + Source)
-  ExternalMailTracked: [
-    titleField,
-    { title: 'Source' },
-    ...trackedMailFields,
-  ],
-
-  // Externally-tracked / registered mail (adds External Tracking ID + Carrier)
-  ExternalMailRegistered: [
-    titleField,
-    { title: 'Source' },
-    { title: 'ExternalTrackingId', indexed: true },
-    { title: 'Carrier' },
-    ...trackedMailFields,
   ],
 }
 

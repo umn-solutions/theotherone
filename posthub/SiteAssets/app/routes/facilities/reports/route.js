@@ -52,6 +52,7 @@ export default defineRoute((config) => {
     'pending':    '#939fa6',
     'in transit': '#f1875a',
     'arrived':    '#009fb1',
+    'awaiting signature': '#7a5bd6',
     'delivered':  '#0f7164',
   }
   // Series colors for the per-building grouped bar (all from the token palette).
@@ -385,6 +386,27 @@ export default defineRoute((config) => {
   let indicatorTableInstance = null
   let statusDonutInstance = null
 
+  // The route can be torn down (navigated away) while an async data load is
+  // still in flight. After teardown the card mount elements are gone --
+  // getMountElement() returns null, and rendering a chart would then call
+  // ResizeObserver.observe(null), throwing an unhandled rejection (the "crash").
+  // Guard every post-await DOM touch with this flag, and destroy the charts on
+  // cleanup so their ResizeObservers (one per chart) don't leak across visits.
+  let aborted = false
+  config.onCleanup(() => {
+    aborted = true
+    for (const chart of [
+      groupedBarInstance, volumeDonutInstance, flowMatrixInstance, lineInstance,
+      horizontalBarInstance, indicatorTableInstance, statusDonutInstance,
+    ]) {
+      try {
+        chart?.destroy?.()
+      } catch (err) {
+        console.warn('[Reports.cleanup] chart destroy failed', err)
+      }
+    }
+  })
+
   function ensureCharts() {
     if (!groupedBarInstance) {
       groupedBarInstance = createGroupedBarChart({
@@ -435,6 +457,7 @@ export default defineRoute((config) => {
   }
 
   function renderStats() {
+    if (aborted) return
     ensureCharts()
     const buildings = activeLocationTitles
 
@@ -546,6 +569,7 @@ export default defineRoute((config) => {
       console.error('[Reports.fetchData] failed to load report data', { from, to, err })
       loading.error('Failed to load reports')
     }
+    if (aborted) return
     applyFilters()
   }
 
@@ -569,6 +593,7 @@ export default defineRoute((config) => {
       Toast.error('Failed to load locations')
     }
     activeLocationTitles = activeLocations.map(l => l.Title)
+    if (aborted) return
 
     // Date range drives fetch (server-side CAML).
     const startField = new FormField({ value: filters.dateFrom })

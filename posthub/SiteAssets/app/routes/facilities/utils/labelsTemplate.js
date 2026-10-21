@@ -8,6 +8,7 @@ import {
   Toast,
   SiteApi,
   FormField,
+  TextInput,
   PeoplePicker,
   FieldLabel,
 } from '../../../libs/nofbiz/nofbiz.base.js'
@@ -36,20 +37,22 @@ import { printQrLabelPdf } from './qrLabelPdf.js'
  *
  * @param {object} config SPARC route config
  * @param {object} ctx    Mail context (INTERNAL_MAIL / EXTERNAL_MAIL)
- * @param {object} opts   { variant: 'print' | 'reprint' }
+ * @param {object} opts   { variant: 'print' | 'reprint', searchBy?: 'person' | 'tracking' }
+ *   searchBy 'tracking' replaces the person search with a tracking-number lookup.
  * @returns {Promise<[object, object]>} [navbar, contentArea]
  */
-export async function createLabelsRoute(config, ctx, { variant }) {
+export async function createLabelsRoute(config, ctx, { variant, searchBy = 'person' }) {
   const isReprint = variant === 'reprint'
+  const byTracking = searchBy === 'tracking'
   const verb = isReprint ? 'Reprint' : 'Print'
   config.setRouteTitle(`${verb} Labels`)
 
   const siteApi = new SiteApi()
   const searchField = ctx.labelSearchField
-  const searchNoun = ctx.labelSearchNoun
-  const searchLabel = searchNoun.charAt(0).toUpperCase() + searchNoun.slice(1)
+  const searchNoun = byTracking ? 'tracking number' : ctx.labelSearchNoun
+  const searchLabel = byTracking ? 'Tracking Number' : (searchNoun.charAt(0).toUpperCase() + searchNoun.slice(1))
 
-  let personSelected = false
+  let hasSearched = false
   let packages = []
 
   const personField = new FormField({ value: { value: '', label: '' } })
@@ -61,6 +64,14 @@ export async function createLabelsRoute(config, ctx, { variant }) {
         handlePersonSelect(identity.email, identity.displayName || identity.email)
       }
     },
+  })
+
+  // Tracking-number search (used when searchBy === 'tracking').
+  const trackingField = new FormField({ value: '' })
+  const trackingInput = new TextInput(trackingField, { placeholder: 'Type or scan a tracking number...' })
+  const trackingSearchBtn = new Button('Search', {
+    onClickHandler: () => handleTrackingSearch(),
+    class: 'mail-labels__print-btn',
   })
 
   const pageLoader = new Loader(new Text('Loading...'), { animation: 'pulse' })
@@ -84,14 +95,23 @@ export async function createLabelsRoute(config, ctx, { variant }) {
 
   const tableContainer = new Container([], { class: 'posthub__table-container' })
 
+  const searchControl = byTracking
+    ? new Container([
+        new FieldLabel(searchLabel, trackingInput, { class: 'mail-labels__sender-field' }),
+        trackingSearchBtn,
+      ], { class: 'mail-labels__tracking-search' })
+    : new FieldLabel(searchLabel, personPicker, { class: 'mail-labels__sender-field' })
+
   const searchPrompt = new Container([
     new Container([
       new Text(`Search for ${searchLabel}`, { type: 'h2', class: 'posthub__prompt-title' }),
-      new Text(`Type a name or email to find ${isReprint ? 'active' : 'pending'} mail`, {
+      new Text(byTracking
+        ? 'Type or scan a tracking number to reprint its QR label'
+        : `Type a name or email to find ${isReprint ? 'active' : 'pending'} mail`, {
         type: 'p',
         class: 'posthub__prompt-subtitle',
       }),
-      new FieldLabel(searchLabel, personPicker, { class: 'mail-labels__sender-field' }),
+      searchControl,
     ], { class: 'posthub__prompt-content' }),
   ], { class: 'posthub__prompt' })
 
@@ -105,7 +125,7 @@ export async function createLabelsRoute(config, ctx, { variant }) {
         [searchField]: email,
         Status: statusQuery,
       })
-      personSelected = true
+      hasSearched = true
       Toast.success(`Found ${packages.length} ${isReprint ? 'active' : 'pending'} mail item(s) for ${displayName}`)
       updateView()
     } catch (err) {
@@ -114,6 +134,36 @@ export async function createLabelsRoute(config, ctx, { variant }) {
     } finally {
       pageLoader.toggleLoader()
     }
+  }
+
+  async function handleTrackingSearch() {
+    const tracking = (trackingField.value || '').trim()
+    if (!tracking) { Toast.error('Enter a tracking number'); return }
+    pageLoader.toggleLoader()
+    try {
+      // Exact tracking-number lookup across the context's lists (header record).
+      packages = await fetchItemsAcrossLists(siteApi, ctx.listNames, { Title: tracking })
+      hasSearched = true
+      Toast.success(`Found ${packages.length} mail item(s) for ${tracking}`)
+      updateView()
+    } catch (err) {
+      console.error('[labels] failed to load mail by tracking', err)
+      Toast.error('Failed to load mail')
+    } finally {
+      pageLoader.toggleLoader()
+    }
+  }
+
+  function resetSearch() {
+    hasSearched = false
+    packages = []
+    if (byTracking) {
+      trackingField.value = ''
+    } else {
+      personField.value = { value: '', label: '' }
+      personPicker.clearSelection()
+    }
+    updateView()
   }
 
   function markRowPrinted(e) {
@@ -160,7 +210,7 @@ export async function createLabelsRoute(config, ctx, { variant }) {
   }
 
   function updateView() {
-    if (!personSelected) {
+    if (!hasSearched) {
       tableContainer.children = [searchPrompt]
       return
     }
@@ -168,24 +218,20 @@ export async function createLabelsRoute(config, ctx, { variant }) {
       tableContainer.children = [
         new Container([
           new Container([
-            new Text(`No ${isReprint ? 'active' : 'pending'} mail found`, {
+            new Text(byTracking ? 'No mail found' : `No ${isReprint ? 'active' : 'pending'} mail found`, {
               type: 'h2',
               class: 'posthub__prompt-title',
             }),
             new Text(
-              isReprint
-                ? `This ${searchNoun} has no mail with "in transit" or "arrived" status.`
-                : `This ${searchNoun} has no mail with "pending" status.`,
+              byTracking
+                ? 'No mail matches that tracking number.'
+                : isReprint
+                  ? `This ${searchNoun} has no mail with "in transit" or "arrived" status.`
+                  : `This ${searchNoun} has no mail with "pending" status.`,
               { type: 'p', class: 'posthub__prompt-subtitle' },
             ),
             new Button(`Search Another ${searchLabel}`, {
-              onClickHandler: () => {
-                personSelected = false
-                packages = []
-                personField.value = { value: '', label: '' }
-                personPicker.clearSelection()
-                updateView()
-              },
+              onClickHandler: resetSearch,
               class: 'posthub__scan-btn',
             }),
           ], { class: 'posthub__prompt-content' }),

@@ -29,6 +29,10 @@
   width: 100%;
 }
 
+.external-mail__card--wide {
+  grid-column: span 2;
+}
+
 .external-mail__card {
   background: var(--color-bg-base);
   padding: var(--space-xxxl) var(--space-xxl);
@@ -107,6 +111,7 @@
 @media (max-width: 768px) {
   .external-mail__wrapper { padding: 1.25rem var(--space-l); }
   .external-mail__cards { grid-template-columns: 1fr; }
+  .external-mail__card--wide { grid-column: span 1; }
   .external-mail__card { padding: var(--space-xxl); }
   .external-mail__card-btn { width: 100%; }
 }

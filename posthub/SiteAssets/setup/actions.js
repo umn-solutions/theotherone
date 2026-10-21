@@ -12,7 +12,7 @@ export async function createList(siteApi, listName, schema, appUrl) {
     const createdFields = [];
     for (const sf of schema[listName]) {
       if (sf.builtIn) continue;
-      try {
+      try { 
         await listApi.createField(sf);
         log('  + ' + sf.title + (sf.indexed ? ' (indexed)' : '') + (sf.multiline ? ' (Note)' : ''));
         createdFields.push(sf.title);

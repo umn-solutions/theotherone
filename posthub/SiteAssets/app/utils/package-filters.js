@@ -27,6 +27,8 @@ const TRACKING_DEBOUNCE_MS = 200
  * @param {boolean} [args.options.includeTracking=true]  When false, omits the tracking input.
  * @param {() => void} args.onFilterChange  Fires after a non-date filter mutates `filters`.
  * @param {(from: string, to: string) => void} args.onDateChange  Fires (debounced) after valid date change.
+ * @param {Container[]} [args.extraGroups=[]]  Extra filter-group containers appended to the
+ *   grid after the standard refine filters (e.g. external mail's Category/Direction/Type).
  *
  * @returns {{
  *   filterGrid: Container,
@@ -40,6 +42,7 @@ export function createPackageFilters({
   options = {},
   onFilterChange,
   onDateChange,
+  extraGroups = [],
 }) {
   const includeTracking = options.includeTracking !== false
 
@@ -178,18 +181,22 @@ export function createPackageFilters({
     ], { class: 'posthub__filter-group' }),
   )
 
+  // Action buttons (Clear / Export) live on the Date Range line, pushed to the
+  // far right of the top bar (see .posthub__filter-sidebar--top .posthub__button-row).
+  const buttonRowSlot = new Container([], { class: 'posthub__button-row' })
+
   const filterGrid = new Container([
     new Text('Date Range', { type: 'p', class: 'posthub__section-heading' }),
     new Container([
       new Text('Period', { type: 'label', class: 'posthub__filter-label' }),
       dateRangeInput,
     ], { class: 'posthub__filter-group' }),
+    buttonRowSlot,
 
     new Text('Refine Results', { type: 'p', class: 'posthub__section-heading posthub__section-heading--separator' }),
     ...refineChildren,
+    ...extraGroups,
   ], { class: 'posthub__filter-grid' })
-
-  const buttonRowSlot = new Container([], { class: 'posthub__button-row' })
 
   function clearAll() {
     if (includeTracking) {

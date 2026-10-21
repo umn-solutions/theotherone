@@ -41,24 +41,19 @@ export default defineRoute(async (config) => {
       title: 'Search',
       desc: 'Search external mail by tracking number, sender, recipient, status, or location.',
       route: 'search',
+      wide: true,
     },
     {
-      icon: 'route-line',
-      title: 'Reroute',
-      desc: 'Redirect external mail to a different destination, with a mandatory reason.',
-      route: 'reroute',
+      icon: 'printer-line',
+      title: 'Reprint Labels',
+      desc: 'Reprint a QR label by searching its tracking number.',
+      route: 'reprint-labels',
     },
     {
       icon: 'inbox-line',
       title: 'Register Mail',
-      desc: 'Register incoming external mail: bulk, tracked, or registered / legal.',
+      desc: 'Register ingoing or outgoing external mail -- tracked (QR label) or as a quick log.',
       route: 'register-mail',
-    },
-    {
-      icon: 'send-plane-line',
-      title: 'Dispatch',
-      desc: 'Scan printed QR labels to dispatch external mail for internal delivery.',
-      route: 'dispatch',
     },
     {
       icon: 'download-line',
@@ -69,13 +64,13 @@ export default defineRoute(async (config) => {
     {
       icon: 'check-double-line',
       title: 'Delivery',
-      desc: 'Scan arrived external mail to mark it delivered, completing the workflow.',
+      desc: 'Scan external mail to deliver it. Off-platform recipients route via courier handover + signed proof.',
       route: 'delivery',
     },
   ]
 
   const featureCards = new Container(
-    cards.map(({ icon, title, desc, route }) =>
+    cards.map(({ icon, title, desc, route, wide }) =>
       new Container([
         new Container([getIcon(icon)], { class: 'external-mail__card-step', as: 'span' }),
         new Text(title, { type: 'h2', class: 'external-mail__card-title' }),
@@ -83,7 +78,7 @@ export default defineRoute(async (config) => {
         new LinkButton('Open', `facilities/external-mail/${route}`, {
           class: 'external-mail__card-btn',
         }),
-      ], { class: 'external-mail__card' })
+      ], { class: wide ? 'external-mail__card external-mail__card--wide' : 'external-mail__card' })
     ),
     { class: 'external-mail__cards' }
   )

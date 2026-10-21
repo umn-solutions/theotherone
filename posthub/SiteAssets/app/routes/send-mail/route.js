@@ -27,6 +27,7 @@ import {
 	TRACKING_PREFIX,
 	USER_DB_LINK,
 } from "../../utils/constants.js";
+import { makeTrackingId } from "../../utils/tracking-id.js";
 
 export default defineRoute(async (config) => {
 	config.setRouteTitle("Send Mail");
@@ -268,13 +269,8 @@ export default defineRoute(async (config) => {
 			const loading = Toast.loading("Creating mail...");
 
 			try {
-				// Generate tracking number
-				const now = new Date();
-				const date = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
-				const sequence = String(
-					Math.floor(Math.random() * 100000),
-				).padStart(5, "0");
-				const trackingNumber = `${TRACKING_PREFIX}-${date}-${sequence}`;
+				// Generate a collision-safe tracking number
+				const trackingNumber = makeTrackingId(TRACKING_PREFIX);
 
 				const senderEmail = user.get("email");
 

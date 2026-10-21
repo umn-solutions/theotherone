@@ -85,7 +85,7 @@ export default defineRoute(async (config) => {
 			),
 			featureCard(
 				"External Mail Config",
-				"Manage categories, external sources, and carriers for external mail forms",
+				"Manage categories, subcategories, and external sources for external mail forms",
 				"facilities/external-mail/config",
 			),
 		);

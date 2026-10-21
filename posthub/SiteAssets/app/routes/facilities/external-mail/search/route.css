@@ -1,28 +1,28 @@
 /* SEARCH EXTERNAL MAIL - Route-specific overrides only */
 /* Filter sidebar uses shared posthub__filter-sidebar / posthub__filter-grid */
 
-/* Table grid: 7 columns -- Received | Status | Category | Current | Destination | Recipient | Tracking */
-.external-mail-search__table { --table-columns: 1fr 0.8fr 0.9fr 1.1fr 1.1fr 1.1fr 1.4fr; }
+/* Table grid: 8 columns -- Received | Status | Category | Direction | Current | Destination | Recipient | Tracking */
+.external-mail-search__table { --table-columns: 1fr 0.8fr 0.9fr 0.8fr 1.1fr 1.1fr 1.1fr 1.4fr; }
 
+/* Body: filters bar on top, results below (full page width) */
 .external-mail-search__body {
   display: flex;
+  flex-direction: column;
   flex: 1;
   overflow: hidden;
   position: relative;
 }
 
-/* Refine section groups the filter grid + Category filter above the button row */
-.external-mail-search__refine {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-l);
-}
-
-/* Mail Type filter: one checkbox per external mail type, stacked vertically */
+/* Untracked toggle: no field label on top, so drop it to the bottom of the
+   filter line and give it the combobox control height, so the checkbox centers
+   vertically against the neighbouring comboboxes instead of riding high. */
 .external-mail-search__type-filter {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: var(--space-s);
+  align-self: flex-end;
+  min-height: 2.0625rem;
 }
 
 /* The shared .form-control rule forces width:25ch on the checkbox, stretching it
