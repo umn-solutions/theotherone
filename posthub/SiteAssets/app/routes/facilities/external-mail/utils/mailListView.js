@@ -5,6 +5,7 @@ import {
   LinkButton,
   ComboBox,
   CheckBox,
+  TextInput,
   FieldLabel,
   FormField,
   getIcon,
@@ -28,7 +29,7 @@ import { extractSelection } from '../../../../utils/filter-helpers.js'
 import { defaultDateFrom, defaultDateTo, parseFilterDate } from '../../../../utils/date-helpers.js'
 import { getLocationValue, getUserDisplayName } from '../../../../utils/user-helpers.js'
 import { LIST_EXTERNAL_PACKAGES, LIST_EXTERNAL_LOG, MAIL_DIRECTIONS, DIRECTION_LABELS } from '../../../../utils/constants.js'
-import { fetchItemsAcrossLists, loadCategoryOptions, loadLocationOptions } from './external-data.js'
+import { fetchItemsAcrossLists, loadCategoryOptions, loadLocationOptions, loadExternalItemIndex } from './external-data.js'
 
 // Field accessors that work for tracked headers AND untracked log rows. Log rows
 // lack Recipient / DestinationLocation / SubmissionDate, so derive them from the
@@ -118,6 +119,7 @@ export async function createExternalMailListView(config, {
 
   const filters = {
     tracking: '',
+    itemTrackingId: '',
     senderEmail: '',
     recipientEmail: '',
     status: [],
@@ -132,6 +134,9 @@ export async function createExternalMailListView(config, {
 
   let allItems = []
   let filtered = []
+  // Map<headerTrackingNumber, lowercased per-item external tracking ids[]> --
+  // powers the "Item Tracking ID" filter (match a collection by any item's carrier id).
+  let itemIndex = new Map()
 
   const { show: showDetailPanel } = createPackageDetailPanel({ actions: reprintActions })
   const navbar = createNavbar()
@@ -155,12 +160,23 @@ export async function createExternalMailListView(config, {
 
     filtered = allItems.filter((pkg) => {
       if (!filters.mailTypes.includes(pkg.__listName)) return false
-      const dateToCheck = pkg.SubmissionDate || pkg.Created
-      if (dateToCheck) {
-        if (fromDate && __dayjs(dateToCheck).isBefore(fromDate, 'day')) return false
-        if (toDate && __dayjs(dateToCheck).isAfter(toDate, 'day')) return false
+      // When tracking is active, the search is global -- skip the date-range
+      // client check so out-of-range matches remain visible.
+      if (!filters.tracking) {
+        const dateToCheck = pkg.SubmissionDate || pkg.Created
+        if (dateToCheck) {
+          if (fromDate && __dayjs(dateToCheck).isBefore(fromDate, 'day')) return false
+          if (toDate && __dayjs(dateToCheck).isAfter(toDate, 'day')) return false
+        }
       }
       if (filters.tracking && !pkg.Title.toLowerCase().includes(filters.tracking)) return false
+      if (filters.itemTrackingId) {
+        // Match the collection if any of its line items' external carrier ids
+        // contains the query. Only tracked collections are indexed; log rows
+        // have no items so they never match (correct -- they carry no carrier id).
+        const ids = itemIndex.get(pkg.Title)
+        if (!ids || !ids.some((id) => id.includes(filters.itemTrackingId))) return false
+      }
       if (filters.senderEmail && pkg.SenderEmail !== filters.senderEmail) return false
       if (filters.recipientEmail && pkg.RecipientEmail !== filters.recipientEmail) return false
       if (filters.status.length > 0 && !filters.status.includes(pkg.Status)) return false
@@ -216,7 +232,7 @@ export async function createExternalMailListView(config, {
   ], { class: 'posthub__filter-group' })
 
   const directionOptions = [
-    { label: DIRECTION_LABELS[MAIL_DIRECTIONS.INGOING], value: MAIL_DIRECTIONS.INGOING },
+    { label: DIRECTION_LABELS[MAIL_DIRECTIONS.INCOMING], value: MAIL_DIRECTIONS.INCOMING },
     { label: DIRECTION_LABELS[MAIL_DIRECTIONS.OUTGOING], value: MAIL_DIRECTIONS.OUTGOING },
   ]
   const directionField = new FormField({ value: [] })
@@ -230,6 +246,23 @@ export async function createExternalMailListView(config, {
   const directionGroup = new Container([
     new Text('Direction', { type: 'label', class: 'posthub__filter-label' }),
     directionComboBox,
+  ], { class: 'posthub__filter-group' })
+
+  // Item (carrier) tracking id. TextInput debounces value-sync into its FormField;
+  // subscribing fires post-debounce (same pattern as the header Tracking Number).
+  const ITEM_ID_DEBOUNCE_MS = 200
+  const itemIdField = new FormField({ value: '' })
+  const itemIdInput = new TextInput(itemIdField, {
+    placeholder: 'e.g. RR123456789PT',
+    debounceMs: ITEM_ID_DEBOUNCE_MS,
+  })
+  itemIdField.subscribe(() => {
+    filters.itemTrackingId = (itemIdField.value || '').trim().toLowerCase()
+    applyFilters()
+  })
+  const itemIdGroup = new Container([
+    new Text('Item Tracking ID', { type: 'label', class: 'posthub__filter-label' }),
+    itemIdInput,
   ], { class: 'posthub__filter-group' })
 
   // Single toggle: untracked (logged) mail is hidden by default; checking it adds
@@ -252,7 +285,7 @@ export async function createExternalMailListView(config, {
     options: { includeTracking: true },
     onFilterChange: applyFilters,
     onDateChange: () => applyFilters(),
-    extraGroups: [categoryGroup, directionGroup, typeGroup],
+    extraGroups: [categoryGroup, directionGroup, itemIdGroup, typeGroup],
   })
 
   const clearButton = new Button('Clear Filters', {
@@ -263,6 +296,9 @@ export async function createExternalMailListView(config, {
       categoryComboBox.clearSelection()
       filters.direction = []
       directionComboBox.clearSelection()
+      filters.itemTrackingId = ''
+      itemIdField.value = ''
+      itemIdInput.render()
       // Reset the untracked toggle to its default (hidden). FormControl needs
       // render() to reflect a programmatic value change in the DOM.
       filters.mailTypes = [LIST_EXTERNAL_PACKAGES]
@@ -325,7 +361,10 @@ export async function createExternalMailListView(config, {
   // Initial state: loading, then fetch all three lists and render
   resultsContainer.children = [createEmptyState('Loading...', 'Fetching external mail.')]
 
-  allItems = await fetchItemsAcrossLists(siteApi, TRACKED_LISTS)
+  ;[allItems, itemIndex] = await Promise.all([
+    fetchItemsAcrossLists(siteApi, TRACKED_LISTS),
+    loadExternalItemIndex(siteApi),
+  ])
   applyFilters()
 
   return [navbar, contentArea]

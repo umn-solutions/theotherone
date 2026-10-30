@@ -5,6 +5,7 @@ import {
   LinkButton,
   ComboBox,
   TextInput,
+  TextArea,
   NumberInput,
   PeoplePicker,
   FormField,
@@ -34,7 +35,7 @@ import {
 } from './external-data.js'
 
 /**
- * Shared builder for the untracked external-mail LOG forms (ingoing-untracked and
+ * Shared builder for the untracked external-mail LOG forms (incoming-untracked and
  * outgoing). Same master-detail shape as the tracked collection form, minus every
  * tracking feature (no QR label, no external tracking id / carrier, no status or
  * workflow): the internal routing (contact + office) is entered ONCE at the header,
@@ -42,7 +43,7 @@ import {
  * sharing one BatchId plus the header's contact/office/direction.
  *
  * Direction sets the internal/external roles:
- *   - ingoing:  external = Sender,    internal = Recipient
+ *   - incoming:  external = Sender,    internal = Recipient
  *   - outgoing: external = Recipient, internal = Sender
  *
  * Header fields: Internal contact (PeoplePicker) + Office (Locations).
@@ -51,7 +52,7 @@ import {
  *
  * @param {object} config SPARC route config (from defineRoute)
  * @param {object} opts
- * @param {'ingoing'|'outgoing'} opts.direction
+ * @param {'incoming'|'outgoing'} opts.direction
  * @param {string} opts.title
  * @param {string} opts.subtitle
  * @param {string} opts.backPath   Route path for the back arrow.
@@ -61,9 +62,9 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
   const siteApi = new SiteApi()
   const user = new CurrentUser()
 
-  const isIngoing = direction === MAIL_DIRECTIONS.INGOING
-  const externalRole = isIngoing ? 'Sender' : 'Recipient'
-  const internalRole = isIngoing ? 'Recipient' : 'Sender'
+  const isIncoming = direction === MAIL_DIRECTIONS.INCOMING
+  const externalRole = isIncoming ? 'Sender' : 'Recipient'
+  const internalRole = isIncoming ? 'Recipient' : 'Sender'
 
   const [categoryOptions, partyOptions, locationOptions, subcategoryMap] = await Promise.all([
     loadCategoryOptions(siteApi),
@@ -84,6 +85,11 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
   const officeComboBox = new ComboBox(officeField, locationOptions, {
     placeholder: 'Select office...',
   })
+
+  // Collection-level notes for the whole batch (optional). Denormalized onto every
+  // ExternalMailLog row of the batch (the log has no header record).
+  const notesField = new FormField({ value: '' })
+  const notesTextArea = new TextArea(notesField, { placeholder: 'Optional notes for the whole collection...', rows: 2 })
 
   // --- Per-item (parts) rows ---
   function createEmptyRow() {
@@ -170,10 +176,21 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
     })
   }
 
+  function createRowFromLast() {
+    const newRow = createEmptyRow()
+    const src = rows[rows.length - 1]
+    if (src) {
+      newRow.category.value = src.category.value
+      newRow.subcategory.value = src.subcategory.value
+      newRow.external.value = src.external.value
+    }
+    return newRow
+  }
+
   const addRowBtn = new Button('Add Item', {
     variant: 'secondary',
     onClickHandler: () => {
-      rows.push(createEmptyRow())
+      rows.push(createRowFromLast())
       renderGrid()
     },
   })
@@ -198,6 +215,8 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
       // One BatchId per "Submit All" groups every row of this submission so the
       // detail panel can list all items registered together (the "collection").
       const batchId = makeSequentialId(BULK_BATCH_PREFIX)
+      // Collection-level notes, same on every row of this batch.
+      const collectionNotes = (notesField.value || '').trim()
 
       try {
         for (const row of filled) {
@@ -215,6 +234,7 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
             InternalOffice: office,
             RegisteredByEmail: registeredBy,
             BatchId: batchId,
+            CollectionNotes: collectionNotes,
           })
         }
         loading.success(`${filled.length} item(s) logged`)
@@ -235,10 +255,11 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
   // Header (collection-level routing) card -- the internal side, entered once.
   const headerCard = new Container([
     new Container([
-      new Text(`${isIngoing ? 'Incoming' : 'Outgoing'} Mail Details`, { type: 'span', class: 'external-mail-form__form-title' }),
+      new Text(`${isIncoming ? 'Incoming' : 'Outgoing'} Mail Details`, { type: 'span', class: 'external-mail-form__form-title' }),
     ], { class: 'external-mail-form__form-header' }),
     new FieldLabel(`${internalRole} (internal)`, contactPicker, { class: 'external-mail-form__form-group' }),
     new FieldLabel('Office', officeComboBox, { class: 'external-mail-form__form-group' }),
+    new FieldLabel('Collection Notes (optional)', notesTextArea, { class: 'external-mail-form__form-group' }),
   ], { class: 'external-mail-form__form-content' })
   const headerSection = new Container([headerCard], { class: 'external-mail-form__form-section' })
 

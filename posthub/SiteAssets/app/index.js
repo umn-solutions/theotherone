@@ -59,10 +59,10 @@ new Router([
 	"facilities/internal-mail/search-package", // Route: /facilities/internal-mail/search-package
 	"facilities/internal-mail/reprint-labels", // Route: /facilities/internal-mail/reprint-labels
 	"facilities/external-mail", // Route: /facilities/external-mail
-	"facilities/external-mail/register-mail", // Register hub (ingoing / outgoing)
-	"facilities/external-mail/register-mail/ingoing", // Ingoing hub (with / without tracking)
-	"facilities/external-mail/register-mail/ingoing/tracked", // Multipart tracked collection (QR + workflow)
-	"facilities/external-mail/register-mail/ingoing/untracked", // Untracked reporting log (ingoing)
+	"facilities/external-mail/register-mail", // Register hub (incoming / outgoing)
+	"facilities/external-mail/register-mail/incoming", // Incoming hub (with / without tracking)
+	"facilities/external-mail/register-mail/incoming/tracked", // Multipart tracked collection (QR + workflow)
+	"facilities/external-mail/register-mail/incoming/untracked", // Untracked reporting log (incoming)
 	"facilities/external-mail/register-mail/outgoing", // Untracked reporting log (outgoing)
 	"facilities/external-mail/reception",
 	"facilities/external-mail/delivery",

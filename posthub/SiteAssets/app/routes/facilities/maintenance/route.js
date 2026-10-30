@@ -66,7 +66,7 @@ export default defineRoute((config) => {
         dateColumn('Waiting Since', 'LastModifiedDate'),
       ],
       // Arrived (reached destination, not picked up) and stale beyond threshold.
-      // Chases internal mail PLUS external INGOING mail addressed to an internal
+      // Chases internal mail PLUS external INCOMING mail addressed to an internal
       // (on-platform) recipient. Off-platform subsidiary recipients have no
       // account/email to chase, so they are excluded.
       load: async () => {
@@ -77,7 +77,7 @@ export default defineRoute((config) => {
 
         const external = await siteApi.list(LIST_EXTERNAL_PACKAGES).getItems({
           Status: 'arrived',
-          Direction: MAIL_DIRECTIONS.INGOING,
+          Direction: MAIL_DIRECTIONS.INCOMING,
         })
         const externalToInternalUser = external.filter(
           (p) =>

@@ -26,7 +26,7 @@ import {
 } from '../../utils/package-table-columns.js'
 import { extractSelection } from '../../utils/filter-helpers.js'
 import { createEmptyState } from '../../utils/empty-state.js'
-import { DAYJS_FORMAT, parseFilterDate, toISOStart, toISOEnd, defaultDateFrom, defaultDateTo } from '../../utils/date-helpers.js'
+import { parseFilterDate, defaultDateFrom, defaultDateTo, buildDateRangeCaml } from '../../utils/date-helpers.js'
 
 export default defineRoute((config) => {
   config.setRouteTitle('My Mail')
@@ -57,9 +57,6 @@ export default defineRoute((config) => {
   // --- CAML query builder ---
 
   function buildMyMailCaml(from, to) {
-    const fromISO = toISOStart(from)
-    const toISO = toISOEnd(to)
-
     // User filter: SenderEmail=user OR RecipientEmail=user
     const userClause =
       `<Or>` +
@@ -67,16 +64,15 @@ export default defineRoute((config) => {
         `<Eq><FieldRef Name='RecipientEmail'/><Value Type='Text'>${currentUserEmail}</Value></Eq>` +
       `</Or>`
 
-    // Date filter: (SubmissionDate>=start AND SubmissionDate<=end) OR SubmissionDate is empty (pending packages)
+    // Date filter via shared helper (SubmissionDate range + empty clause for pending)
+    const dateCaml = buildDateRangeCaml(from, to, 'SubmissionDate', true)
+
+    // If buildDateRangeCaml returned a <View>, extract just the <Where> content
+    // to combine with the user clause.
     let dateClause = ''
-    if (fromISO && toISO) {
-      const rangeClause =
-        `<And>` +
-          `<Geq><FieldRef Name='SubmissionDate'/><Value Type='Text'>${fromISO}</Value></Geq>` +
-          `<Leq><FieldRef Name='SubmissionDate'/><Value Type='Text'>${toISO}</Value></Leq>` +
-        `</And>`
-      const emptyClause = `<Eq><FieldRef Name='SubmissionDate'/><Value Type='Text'></Value></Eq>`
-      dateClause = `<Or>${rangeClause}${emptyClause}</Or>`
+    if (dateCaml) {
+      const whereMatch = dateCaml.match(/<Where>([\s\S]*)<\/Where>/)
+      if (whereMatch) dateClause = whereMatch[1]
     }
 
     const where = dateClause

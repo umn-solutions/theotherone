@@ -31,7 +31,7 @@ export default defineRoute((config) => {
   ], { class: 'posthub__page-header' })
 
   const cards = [
-    { title: 'Ingoing Mail', desc: 'Mail arriving from an external source. Choose tracked (QR label + workflow) or a quick untracked log.', route: 'ingoing' },
+    { title: 'Incoming Mail', desc: 'Mail arriving from an external source. Choose tracked (QR label + workflow) or a quick untracked log.', route: 'incoming' },
     { title: 'Outgoing Mail', desc: 'Mail leaving the building to an external destination. Logged for reporting; never tracked.', route: 'outgoing' },
   ]
 

@@ -6,6 +6,7 @@ import {
   ComboBox,
   TextInput,
   TextArea,
+  NumberInput,
   PeoplePicker,
   FormField,
   FieldLabel,
@@ -55,11 +56,11 @@ import { printQrLabelPdf } from '../../utils/qrLabelPdf.js'
  *
  * @param {object} config SPARC route config (from defineRoute)
  * @param {object} opts
- * @param {'ingoing'} opts.direction  Only ingoing mail is tracked.
+ * @param {'incoming'} opts.direction  Only incoming mail is tracked.
  * @param {string} opts.routePath     Path used by the "Register Another" button + back arrow base.
  * @returns {Promise<[object, object]>} [navbar, pageWrapper]
  */
-export async function createTrackedCollectionForm(config, { direction = MAIL_DIRECTIONS.INGOING, routePath }) {
+export async function createTrackedCollectionForm(config, { direction = MAIL_DIRECTIONS.INCOMING, routePath }) {
   const siteApi = new SiteApi()
   const user = new CurrentUser()
 
@@ -121,6 +122,8 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
   // --- Per-item (parts) rows ---
   function createEmptyRow() {
     return {
+      // Business-logic field, manually entered per item -- never autofilled.
+      itemNumber: new FormField({ value: '' }),
       category: new FormField({ value: '' }),
       subcategory: new FormField({ value: '' }),
       description: new FormField({ value: '' }),
@@ -144,6 +147,7 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
   let rows = freshRows()
 
   const gridHeader = new Container([
+    new Text('Item Number', { type: 'span', class: 'external-mail-bulk__grid-label' }),
     new Text('Category', { type: 'span', class: 'external-mail-bulk__grid-label' }),
     new Text('Subcategory', { type: 'span', class: 'external-mail-bulk__grid-label' }),
     new Text('Description', { type: 'span', class: 'external-mail-bulk__grid-label' }),
@@ -175,6 +179,7 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
           subCombo.render()
         },
       })
+      const itemNumberInput = new NumberInput(row.itemNumber, { min: 0, step: 1, placeholder: 'Item #' })
       const descInput = new TextInput(row.description, { placeholder: 'Description' })
       const fromCombo = new ComboBox(row.from, partyOptions, {
         allowMultiple: false,
@@ -197,15 +202,24 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
       })
 
       return new Container([
-        categoryCombo, subCombo, descInput, fromCombo, externalIdInput, removeBtn,
+        itemNumberInput, categoryCombo, subCombo, descInput, fromCombo, externalIdInput, removeBtn,
       ], { class: 'external-mail-bulk__grid-row' })
     })
+  }
+
+  function createRowFromLast() {
+    const newRow = createEmptyRow()
+    const src = rows[rows.length - 1]
+    newRow.category.value = src.category.value
+    newRow.subcategory.value = src.subcategory.value
+    newRow.from.value = src.from.value
+    return newRow
   }
 
   const addRowBtn = new Button('Add Item', {
     variant: 'secondary',
     onClickHandler: () => {
-      rows.push(createEmptyRow())
+      rows.push(createRowFromLast())
       renderGrid()
     },
   })
@@ -320,6 +334,7 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
         for (const row of filled) {
           await siteApi.list(LIST_EXTERNAL_ITEMS).createItem({
             Title: trackingNumber,
+            ItemNumber: row.itemNumber.value === '' || row.itemNumber.value == null ? '' : String(row.itemNumber.value),
             Category: comboVal(row.category.value),
             SubCategory: comboVal(row.subcategory.value),
             Description: (row.description.value || '').trim(),
@@ -378,7 +393,7 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
 
   const pageHeader = new Container([
     new Container([
-      new LinkButton(getIcon('arrow-go-back-line'), 'facilities/external-mail/register-mail/ingoing', {
+      new LinkButton(getIcon('arrow-go-back-line'), 'facilities/external-mail/register-mail/incoming', {
         class: 'posthub__home-icon',
       }),
       new Text('Register Tracked Mail', { type: 'h1', class: 'posthub__page-title' }),

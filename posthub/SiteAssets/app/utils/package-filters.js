@@ -9,7 +9,7 @@ import {
 } from '../libs/nofbiz/nofbiz.base.js'
 
 import { PACKAGE_STATUSES, STATUS_LABELS } from './constants.js'
-import { extractSelection } from './filter-helpers.js'
+import { extractSelection, parseScannedTrackingId } from './filter-helpers.js'
 import { defaultDateFrom, defaultDateTo } from './date-helpers.js'
 
 const DATE_FORMAT_INPUT = 'dd-mm-yyyy'
@@ -18,7 +18,7 @@ const DATE_DEBOUNCE_MS = 300
 const TRACKING_DEBOUNCE_MS = 200
 
 /**
- * Builds the filter sidebar shared by search-package and reports routes.
+ * Builds the filter sidebar shared by search-package and external search routes.
  *
  * @param {object} args
  * @param {object} args.filters    Mutable state object the route owns.
@@ -27,6 +27,9 @@ const TRACKING_DEBOUNCE_MS = 200
  * @param {boolean} [args.options.includeTracking=true]  When false, omits the tracking input.
  * @param {() => void} args.onFilterChange  Fires after a non-date filter mutates `filters`.
  * @param {(from: string, to: string) => void} args.onDateChange  Fires (debounced) after valid date change.
+ * @param {(trackingValue: string) => void} [args.onTrackingChange]  Fires when the tracking
+ *   input changes. When provided, tracking changes call this instead of onFilterChange,
+ *   enabling the route to switch between global (tracking) and date-ranged fetch paths.
  * @param {Container[]} [args.extraGroups=[]]  Extra filter-group containers appended to the
  *   grid after the standard refine filters (e.g. external mail's Category/Direction/Type).
  *
@@ -42,6 +45,7 @@ export function createPackageFilters({
   options = {},
   onFilterChange,
   onDateChange,
+  onTrackingChange,
   extraGroups = [],
 }) {
   const includeTracking = options.includeTracking !== false
@@ -49,9 +53,7 @@ export function createPackageFilters({
   let dateDebounceTimer = null
 
   // Tracking number (optional). TextInput already debounces value-sync into its bound
-  // FormField (debounceMs); subscribing fires post-debounce. This replaces the old
-  // reach-into-the-DOM hack (instance[0] + querySelector('input') + manual
-  // addEventListener/setTimeout), which was fragile across SPARC versions.
+  // FormField (debounceMs); subscribing fires post-debounce.
   const trackingField = includeTracking ? new FormField({ value: filters.tracking || '' }) : null
   const trackingInput = includeTracking
     ? new TextInput(trackingField, {
@@ -60,10 +62,54 @@ export function createPackageFilters({
       })
     : null
 
-  if (includeTracking) {
-    trackingField.subscribe(() => {
-      filters.tracking = (trackingField.value || '').toLowerCase()
+  // Shared logic: resolve raw input through parseScannedTrackingId, update the
+  // field + DOM if it extracted a different id (QR JSON), then fire the appropriate
+  // callback. Reused by paste, keydown, and the normal subscribe path.
+  function resolveAndApplyTracking(rawValue) {
+    const parsed = parseScannedTrackingId(rawValue)
+    const lowered = parsed.toLowerCase()
+
+    // If the parse extracted a different id (was QR JSON), push the clean id
+    // back into the field + DOM so the user sees the tracking number, not JSON.
+    if (parsed !== rawValue?.trim()) {
+      trackingField.value = parsed
+      trackingInput.render()
+    }
+
+    filters.tracking = lowered
+    if (onTrackingChange) {
+      onTrackingChange(lowered)
+    } else {
       onFilterChange()
+    }
+  }
+
+  if (includeTracking) {
+    // Normal value-change path (typing + keyboard-wedge final value).
+    trackingField.subscribe(() => {
+      resolveAndApplyTracking(trackingField.value || '')
+    })
+
+    // PASTE interception: extract tracking id from QR JSON before the value
+    // reaches the field. If it was plain text, let the default paste proceed.
+    trackingInput.setEventHandler('paste', (ev) => {
+      const raw = ev.clipboardData?.getData('text') || ''
+      const parsed = parseScannedTrackingId(raw)
+      if (parsed !== raw.trim()) {
+        // Was QR JSON -- prevent the raw paste and apply the extracted id.
+        ev.preventDefault()
+        resolveAndApplyTracking(raw)
+      }
+      // Plain text: let default paste proceed; subscribe will fire normally.
+    })
+
+    // KEYBOARD-WEDGE: scanner types JSON then presses Enter. Parse immediately
+    // on Enter so the user doesn't have to wait for debounce to finish.
+    trackingInput.setEventHandler('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault()
+        resolveAndApplyTracking(trackingField.value || '')
+      }
     })
   }
 
@@ -128,7 +174,7 @@ export function createPackageFilters({
     },
   })
 
-  // Date range input — single component handles start + end + 31-day cap
+  // Date range input -- single component handles start + end + 31-day cap
   const dateFromField = new FormField({ value: filters.dateFrom })
   const dateToField = new FormField({ value: filters.dateTo })
   const dateRangeInput = new DateRangeInput(dateFromField, dateToField, {
@@ -148,17 +194,18 @@ export function createPackageFilters({
   dateFromField.subscribe(scheduleDateFetch)
   dateToField.subscribe(scheduleDateFetch)
 
-  // Filter grid layout
-  const refineChildren = []
-  if (includeTracking) {
-    refineChildren.push(
-      new Container([
+  // Tracking input group lives in the Date Range section (adjacent to the
+  // Period control) so that it is visually associated with the fetch-level
+  // controls rather than the client-side refine filters.
+  const trackingGroup = includeTracking
+    ? new Container([
         new Text('Tracking Number', { type: 'label', class: 'posthub__filter-label' }),
         trackingInput,
-      ], { class: 'posthub__filter-group' }),
-    )
-  }
-  refineChildren.push(
+      ], { class: 'posthub__filter-group' })
+    : null
+
+  // Refine Results section (client-side filters only -- no tracking here)
+  const refineChildren = [
     new Container([
       new Text('Status', { type: 'label', class: 'posthub__filter-label' }),
       statusComboBox,
@@ -179,19 +226,24 @@ export function createPackageFilters({
       new Text('Recipient', { type: 'label', class: 'posthub__filter-label' }),
       recipientPicker,
     ], { class: 'posthub__filter-group' }),
-  )
+  ]
 
   // Action buttons (Clear / Export) live on the Date Range line, pushed to the
   // far right of the top bar (see .posthub__filter-sidebar--top .posthub__button-row).
   const buttonRowSlot = new Container([], { class: 'posthub__button-row' })
 
-  const filterGrid = new Container([
+  const dateRangeChildren = [
     new Text('Date Range', { type: 'p', class: 'posthub__section-heading' }),
     new Container([
       new Text('Period', { type: 'label', class: 'posthub__filter-label' }),
       dateRangeInput,
     ], { class: 'posthub__filter-group' }),
-    buttonRowSlot,
+  ]
+  if (trackingGroup) dateRangeChildren.push(trackingGroup)
+  dateRangeChildren.push(buttonRowSlot)
+
+  const filterGrid = new Container([
+    ...dateRangeChildren,
 
     new Text('Refine Results', { type: 'p', class: 'posthub__section-heading posthub__section-heading--separator' }),
     ...refineChildren,
@@ -203,8 +255,7 @@ export function createPackageFilters({
       filters.tracking = ''
       trackingField.value = ''
       // FormControl does not auto-reflect a programmatic field value change --
-      // render() to actually clear the box (same pattern as the checkbox reset in
-      // mailListView). Without it the input keeps showing the old tracking text.
+      // render() to actually clear the box.
       trackingInput.render()
     }
     filters.senderEmail = ''
@@ -227,6 +278,12 @@ export function createPackageFilters({
     dateRangeInput.render() // reflect the reset range in the DOM (no auto-rerender)
 
     clearTimeout(dateDebounceTimer)
+
+    // When tracking was active, route through onTrackingChange so the route
+    // reverts from global search back to the date-ranged view.
+    if (onTrackingChange) {
+      onTrackingChange('')
+    }
     onDateChange(filters.dateFrom, filters.dateTo)
   }
 

@@ -14,7 +14,7 @@ export const LIST_EXTERNAL_SOURCES = "ExternalSources";
 // External Mail lists (fresh master-detail model):
 // - Packages: tracked collection headers (one per QR / tracking number) -- the workflow anchor
 // - Items:    line items (parts) of a tracked collection; FK via Title = header tracking number
-// - Log:      untracked reporting log (ingoing + outgoing); one row per logged item
+// - Log:      untracked reporting log (incoming + outgoing); one row per logged item
 export const LIST_EXTERNAL_PACKAGES = "ExternalMailPackages";
 export const LIST_EXTERNAL_ITEMS = "ExternalMailItems";
 export const LIST_EXTERNAL_LOG = "ExternalMailLog";
@@ -49,6 +49,19 @@ export const STATUS_DESCRIPTIONS = {
 	"delivered": "Mail picked up by recipient",
 };
 
+// Non-status timeline events. Stored in TimelineEntries under the Status column
+// so the detail-panel timeline renders them inline, but deliberately kept out of
+// PACKAGE_STATUSES so status analytics (reports, origin index) ignore them.
+export const TIMELINE_EVENT_CHASE = "chase";
+export const TIMELINE_EVENT_REPRINT = "reprint";
+export const TIMELINE_EVENT_REROUTE = "reroute";
+
+export const TIMELINE_EVENT_DESCRIPTIONS = {
+	[TIMELINE_EVENT_CHASE]: "Pickup reminder sent to recipient",
+	[TIMELINE_EVENT_REPRINT]: "QR label reprinted",
+	[TIMELINE_EVENT_REROUTE]: "Rerouted to correct destination",
+};
+
 // Categorical palette for per-building series (grouped bars, donut, lines,
 // matrix). All values are drawn from the existing PostHub token palette
 // (variables.css) so building charts stay on-brand. Cycles if buildings > 6.
@@ -61,21 +74,21 @@ export const BUILDING_PALETTE = [
 	"#939fa6", // gray (status: pending)
 ];
 
-// Mail direction (external mail only). Ingoing mail may be tracked (QR + workflow)
+// Mail direction (external mail only). Incoming mail may be tracked (QR + workflow)
 // or logged; outgoing mail is never tracked -- it is always a reporting-log entry.
 export const MAIL_DIRECTIONS = {
-	INGOING: "ingoing",
+	INCOMING: "incoming",
 	OUTGOING: "outgoing",
 };
 
 export const DIRECTION_LABELS = {
-	ingoing: "Ingoing",
+	incoming: "Incoming",
 	outgoing: "Outgoing",
 };
 
 // Label for the single "From / To" field, flipped by direction:
-// ingoing mail comes FROM an external party; outgoing mail goes TO one.
+// incoming mail comes FROM an external party; outgoing mail goes TO one.
 export const PARTY_LABELS = {
-	ingoing: "From",
+	incoming: "From",
 	outgoing: "To",
 };

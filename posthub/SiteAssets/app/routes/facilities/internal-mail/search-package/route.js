@@ -24,7 +24,7 @@ import {
   destinationColumn, senderColumn, recipientColumn, dateColumn, packageDetailsColumn,
 } from '../../../../utils/package-table-columns.js'
 import { createEmptyState } from '../../../../utils/empty-state.js'
-import { parseFilterDate, toISOStart, toISOEnd, defaultDateFrom, defaultDateTo } from '../../../../utils/date-helpers.js'
+import { parseFilterDate, defaultDateFrom, defaultDateTo, buildDateRangeCaml } from '../../../../utils/date-helpers.js'
 import { createPackageFilters } from '../../../../utils/package-filters.js'
 import { guardAccess } from '../../../../utils/access.js'
 
@@ -38,29 +38,6 @@ export default defineRoute((config) => {
 
   // --- Helpers ---
 
-  function buildDateCaml(from, to) {
-    const fromISO = toISOStart(from)
-    const toISO_ = toISOEnd(to)
-    if (!fromISO && !toISO_) return undefined
-
-    const fromClause = fromISO
-      ? `<Geq><FieldRef Name='LastModifiedDate'/><Value Type='Text'>${fromISO}</Value></Geq>`
-      : ''
-    const toClause = toISO_
-      ? `<Leq><FieldRef Name='LastModifiedDate'/><Value Type='Text'>${toISO_}</Value></Leq>`
-      : ''
-
-    const rangeClause = fromClause && toClause
-      ? `<And>${fromClause}${toClause}</And>`
-      : fromClause || toClause
-
-    // Pending packages have no LastModifiedDate -- include them so client can filter by Created
-    const emptyClause = `<Eq><FieldRef Name='LastModifiedDate'/><Value Type='Text'></Value></Eq>`
-    const where = `<Or>${rangeClause}${emptyClause}</Or>`
-
-    return `<View><Query><Where>${where}</Where></Query></View>`
-  }
-
   function toExportRows(packages) {
     return packages.map(pkg => ({
       'Tracking ID': pkg.Title,
@@ -70,7 +47,7 @@ export default defineRoute((config) => {
       'Sender': getUserDisplayName(pkg.Sender),
       'Recipient': getUserDisplayName(pkg.Recipient),
       'Mail Details': pkg.PackageDetails || '',
-      'Last Modified': pkg.LastModifiedDate ? __dayjs(pkg.LastModifiedDate).format('DD/MM/YYYY') : '',
+      'Submitted On': pkg.SubmissionDate ? __dayjs(pkg.SubmissionDate).format('DD/MM/YYYY') : '',
     }))
   }
 
@@ -136,12 +113,16 @@ export default defineRoute((config) => {
     const toDate = parseFilterDate(filters.dateTo)
 
     searchResults = allPackages.filter(pkg => {
-      const dateToCheck = pkg.LastModifiedDate || pkg.Created
-      if (fromDate && dateToCheck) {
-        if (__dayjs(dateToCheck).isBefore(fromDate, 'day')) return false
-      }
-      if (toDate && dateToCheck) {
-        if (__dayjs(dateToCheck).isAfter(toDate, 'day')) return false
+      // When tracking is active, the fetch was global (no date CAML) --
+      // skip the date-range client check so out-of-range matches remain visible.
+      if (!filters.tracking) {
+        const dateToCheck = pkg.SubmissionDate || pkg.Created
+        if (fromDate && dateToCheck) {
+          if (__dayjs(dateToCheck).isBefore(fromDate, 'day')) return false
+        }
+        if (toDate && dateToCheck) {
+          if (__dayjs(dateToCheck).isAfter(toDate, 'day')) return false
+        }
       }
 
       if (filters.tracking && !pkg.Title.toLowerCase().includes(filters.tracking)) return false
@@ -175,7 +156,7 @@ export default defineRoute((config) => {
       senderColumn(),
       recipientColumn(),
       packageDetailsColumn(),
-      dateColumn('Last Modified', 'LastModifiedDate'),
+      dateColumn('Submitted On', 'SubmissionDate'),
     ]
 
     const table = createPackageTable({
@@ -188,8 +169,19 @@ export default defineRoute((config) => {
     resultsContainer.children = [resultCount, table]
   }
 
+  // Fetch packages: branches on whether a tracking id is present.
+  // - tracking non-empty: global search via Contains on indexed Title (no date clause)
+  // - tracking empty: date-ranged fetch via SubmissionDate CAML
   async function fetchPackages(from, to) {
-    const caml = buildDateCaml(from, to)
+    let caml
+    if (filters.tracking) {
+      // Global search by tracking substring (Contains on indexed Title).
+      const escaped = filters.tracking.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      caml = `<View><Query><Where><Contains><FieldRef Name='Title'/><Value Type='Text'>${escaped}</Value></Contains></Where></Query></View>`
+    } else {
+      caml = buildDateRangeCaml(from, to, 'SubmissionDate', true)
+    }
+
     const loading = Toast.loading('Loading mail...')
     try {
       allPackages = await siteApi.list(LIST_PACKAGES).getItems(caml)
@@ -199,6 +191,13 @@ export default defineRoute((config) => {
       loading.error('Failed to load mail')
     }
     applyFilters()
+  }
+
+  // Called by createPackageFilters when the tracking input changes. Triggers
+  // a global fetch (non-empty id) or reverts to the date-ranged view (empty id).
+  // fetchPackages reads filters.tracking internally to decide which CAML path to use.
+  function handleTrackingChange() {
+    fetchPackages(filters.dateFrom, filters.dateTo)
   }
 
   const bodyArea = new Container([
@@ -229,6 +228,7 @@ export default defineRoute((config) => {
       options: { includeTracking: true },
       onFilterChange: applyFilters,
       onDateChange: fetchPackages,
+      onTrackingChange: handleTrackingChange,
     })
 
     const clearButton = new Button('Clear Filters', {
@@ -262,7 +262,7 @@ export default defineRoute((config) => {
                 'Sender': 28,
                 'Recipient': 28,
                 'Mail Details': 30,
-                'Last Modified': 16,
+                'Submitted On': 16,
               },
             })
             downloadFile(buffer, `posthub-search-${__dayjs().format('YYYYMMDD-HHmmss')}.xlsx`)

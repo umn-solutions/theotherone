@@ -10,7 +10,7 @@ export default defineRoute(async (config) => {
   if (!guardAccess('EMPLOYEE')) return []
 
   return createTrackedCollectionForm(config, {
-    direction: MAIL_DIRECTIONS.INGOING,
-    routePath: 'facilities/external-mail/register-mail/ingoing/tracked',
+    direction: MAIL_DIRECTIONS.INCOMING,
+    routePath: 'facilities/external-mail/register-mail/incoming/tracked',
   })
 })

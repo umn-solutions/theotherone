@@ -3,6 +3,7 @@ import {
 	Image,
 	Text,
 	CurrentUser,
+	Router,
 } from "../libs/nofbiz/nofbiz.base.js";
 import { APP_NAME } from "../utils/constants.js";
 
@@ -14,7 +15,7 @@ export function createNavbar() {
 
 	return new Container(
 		[
-			// Left section - Logo and branding
+			// Left section - Logo and branding (navigates home on click)
 			new Container(
 				[
 					new Image(LOGO_IMAGE_URL, {
@@ -26,7 +27,10 @@ export function createNavbar() {
 						class: "navbar__brand",
 					}),
 				],
-				{ class: "navbar__left" },
+				{
+					class: "navbar__left",
+					onClickHandler: () => Router.navigateTo("/"),
+				},
 			),
 
 			// Right section - User name

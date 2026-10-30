@@ -25,6 +25,7 @@ import {
   destinationColumn, senderColumn, recipientColumn, packageDetailsColumn,
 } from '../../../utils/package-table-columns.js'
 import { getHubLocation, isHubLocationSet } from './hubLocation.js'
+import { guardUnsaved } from './unsavedGuard.js'
 
 /**
  * Creates a mail action route with predefined status transition.
@@ -77,6 +78,16 @@ export async function createMailActionRoute(config, {
   let scanMode = 'qr'
   let smartCardValue = null
   let smartCardResolver = null
+
+  // Unsaved-work guard: scanned items exist only in memory until the operator
+  // presses "Update All". Warn before any navigation (and on tab close/refresh)
+  // while items are scanned but unsaved, so a scan session is never lost silently.
+  // Cleared automatically on route teardown (see guardUnsaved).
+  guardUnsaved(
+    config,
+    () => scannedPackages.length > 0,
+    () => `You have ${scannedPackages.length} scanned mail item(s) that have not been saved yet. Leave without saving?`,
+  )
 
   // Page loader (full-page overlay during async operations).
   // Rendered via contentArea below -- enable()/disable() are no-ops until then,
@@ -361,17 +372,20 @@ export async function createMailActionRoute(config, {
       const changedBy = UserIdentity.fromCurrentUser(user)
       const statusCounts = {}
       const updatedResults = []
+      const failedItems = []
       let updatedCount = 0
       let skippedCount = 0
 
+      // Update each item independently: one failure (e.g. a 412 concurrency
+      // conflict) must NOT abort the whole batch and hide which items saved.
+      // Failed items are collected and kept scanned so the operator can retry.
       for (const { pkg, target: newStatus } of plan) {
-        const now = new Date().toISOString()
-
         if (newStatus === null) {
           skippedCount++
           continue
         }
 
+        const now = new Date().toISOString()
         const updateFields = {
           Status: newStatus,
           CurrentLocation: newLocation,
@@ -386,33 +400,40 @@ export async function createMailActionRoute(config, {
           updateFields.SmartCardId = smartCardValue
         }
 
-        pkg.Status = newStatus
-        pkg.CurrentLocation = newLocation
+        try {
+          await siteApi.list(pkg.__listName || ctx.primaryList).updateItem(pkg.Id, updateFields, pkg['odata.etag'])
 
-        await siteApi.list(pkg.__listName || ctx.primaryList).updateItem(pkg.Id, updateFields, pkg['odata.etag'])
+          const timelineEntry = {
+            Title: pkg.Title,
+            Status: newStatus,
+            Location: newLocation,
+            ChangedBy: changedBy,
+          }
+          if (comment) timelineEntry.Notes = comment
 
-        const timelineEntry = {
-          Title: pkg.Title,
-          Status: newStatus,
-          Location: newLocation,
-          ChangedBy: changedBy,
+          await siteApi.list(ctx.timelineList).createItem(timelineEntry)
+
+          // Reflect the new state locally only after the write actually succeeded.
+          pkg.Status = newStatus
+          pkg.CurrentLocation = newLocation
+          statusCounts[newStatus] = (statusCounts[newStatus] || 0) + 1
+          updatedResults.push({ pkg, newStatus })
+          updatedCount++
+        } catch (err) {
+          console.error('[mailAction] update failed for', pkg.Title, err)
+          failedItems.push(pkg)
         }
-        if (comment) timelineEntry.Notes = comment
-
-        await siteApi.list(ctx.timelineList).createItem(timelineEntry)
-
-        statusCounts[newStatus] = (statusCounts[newStatus] || 0) + 1
-        updatedResults.push({ pkg, newStatus })
-        updatedCount++
       }
 
       // Post-update hook (e.g. print a signature document for handed-off items).
-      // Isolated so a print failure never breaks the confirmed update.
+      // Isolated so a print failure never breaks the confirmed status change -- but
+      // the failure MUST be visible: the physical courier document did not print.
       if (afterUpdate && updatedResults.length) {
         try {
           await afterUpdate(updatedResults, { printContainer })
         } catch (err) {
           console.error('[mailAction] afterUpdate hook failed', err)
+          Toast.warning('Mail updated, but a follow-up document failed to print. Reprint it manually.')
         }
       }
 
@@ -421,31 +442,62 @@ export async function createMailActionRoute(config, {
         .join(', ')
 
       const skippedMsg = skippedCount > 0 ? `, ${skippedCount} skipped (wrong destination)` : ''
-      loading.success(`${updatedCount} mail item(s) updated${skippedMsg}`)
 
-      tableContainer.children = [
-        new Container([
-          new Text('Update Confirmed', {
-            type: 'h2',
-            class: 'posthub__prompt-title'
-          }),
-          new Text(`${updatedCount} mail item(s) updated: ${summary}${skippedMsg}.`, {
-            type: 'p',
-            class: 'posthub__prompt-subtitle'
-          }),
-          new Button('Scan More', {
-            onClickHandler: () => {
-              scannedPackages = []
-              smartCardValue = null
-              hideLoader()
-              noteField.value = ''
-              updateView()
-              attachScanListeners()
-            },
-            class: 'posthub__scan-btn'
-          }),
-        ], { class: 'posthub__confirmation' }),
-      ]
+      if (failedItems.length === 0) {
+        // Everything saved -- clear scanned items, disarming the unsaved guard.
+        scannedPackages = []
+        loading.success(`${updatedCount} mail item(s) updated${skippedMsg}`)
+
+        tableContainer.children = [
+          new Container([
+            new Text('Update Confirmed', {
+              type: 'h2',
+              class: 'posthub__prompt-title'
+            }),
+            new Text(`${updatedCount} mail item(s) updated: ${summary}${skippedMsg}.`, {
+              type: 'p',
+              class: 'posthub__prompt-subtitle'
+            }),
+            new Button('Scan More', {
+              onClickHandler: () => {
+                scannedPackages = []
+                smartCardValue = null
+                hideLoader()
+                noteField.value = ''
+                updateView()
+                attachScanListeners()
+              },
+              class: 'posthub__scan-btn'
+            }),
+          ], { class: 'posthub__confirmation' }),
+        ]
+      } else {
+        // Partial (or total) failure. Re-fetch fresh copies of the failed items
+        // so a retry carries the CURRENT etag + server state -- the stale etag
+        // held on the original scan is what causes a 412 to repeat forever.
+        // Falls back to the stale copies if the refresh itself fails (logged),
+        // so the operator still sees what did not save.
+        const failedList = failedItems.map((p) => p.Title).join(', ')
+        try {
+          const failedTitles = new Set(failedItems.map((p) => p.Title))
+          const fresh = await fetchItemsAcrossLists(siteApi, ctx.listNames)
+          const byTitle = new Map(
+            fresh.filter((p) => failedTitles.has(p.Title)).map((p) => [p.Title, p])
+          )
+          // Preserve order; drop any that vanished server-side (nothing to retry).
+          scannedPackages = failedItems.map((p) => byTitle.get(p.Title)).filter(Boolean)
+        } catch (err) {
+          console.error('[mailAction] failed to refresh failed items for retry', err)
+          scannedPackages = failedItems
+        }
+
+        loading.error(
+          updatedCount > 0
+            ? `${updatedCount} updated${skippedMsg}, ${failedItems.length} failed: ${failedList}. Press Update All to retry.`
+            : `Could not save: ${failedList}. Press Update All to retry.`
+        )
+        updateView()
+      }
     } catch (err) {
       console.error('[mailAction] bulk update failed', err)
       loading.error('Failed to update mail')
@@ -526,8 +578,16 @@ export async function createMailActionRoute(config, {
         class: 'posthub__update-all-btn'
       })
 
+      const pendingHint = new Container([
+        new Text(
+          `${scannedPackages.length} item(s) scanned -- not saved until you press Update All`,
+          { type: 'span', class: 'posthub__bulk-pending-hint' }
+        ),
+      ], { class: 'posthub__bulk-pending' })
+
       const bulkBar = new Container([
         locationLabel,
+        pendingHint,
         updateAllBtn,
       ], { class: 'posthub__bulk-bar' })
 

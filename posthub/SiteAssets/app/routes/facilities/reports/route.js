@@ -34,7 +34,7 @@ import {
   BUILDING_PALETTE,
 } from '../../../utils/constants.js'
 import { getLocationValue } from '../../../utils/user-helpers.js'
-import { parseFilterDate, toISOStart, toISOEnd, defaultDateFrom, defaultDateTo } from '../../../utils/date-helpers.js'
+import { parseFilterDate, defaultDateFrom, defaultDateTo, buildDateRangeCaml } from '../../../utils/date-helpers.js'
 import { guardAccess } from '../../../utils/access.js'
 
 export default defineRoute((config) => {
@@ -66,33 +66,6 @@ export default defineRoute((config) => {
     return parts.length > 1 ? parts[parts.length - 1].trim() : building.trim()
   }
   const colorFor = (index) => BUILDING_PALETTE[index % BUILDING_PALETTE.length]
-
-  // --- Date CAML helpers ---
-
-  function buildDateCaml(from, to, fieldName, includeEmpty) {
-    const fromISO = toISOStart(from)
-    const toISO_ = toISOEnd(to)
-    if (!fromISO && !toISO_) return undefined
-
-    const fromClause = fromISO
-      ? `<Geq><FieldRef Name='${fieldName}'/><Value Type='Text'>${fromISO}</Value></Geq>`
-      : ''
-    const toClause = toISO_
-      ? `<Leq><FieldRef Name='${fieldName}'/><Value Type='Text'>${toISO_}</Value></Leq>`
-      : ''
-
-    const rangeClause = fromClause && toClause
-      ? `<And>${fromClause}${toClause}</And>`
-      : fromClause || toClause
-
-    let where = rangeClause
-    if (includeEmpty) {
-      const emptyClause = `<Eq><FieldRef Name='${fieldName}'/><Value Type='Text'></Value></Eq>`
-      where = `<Or>${rangeClause}${emptyClause}</Or>`
-    }
-
-    return `<View><Query><Where>${where}</Where></Query></View>`
-  }
 
   // Previous equal-length window immediately preceding [from, to].
   function previousWindow(from, to) {
@@ -133,6 +106,10 @@ export default defineRoute((config) => {
   function buildOriginIndex(timeline) {
     const earliest = new Map()
     for (const entry of timeline) {
+      // Non-status events (e.g. chase reminders) carry a destination location,
+      // not an origin -- skip them so a late event never becomes the "earliest"
+      // (and thus mis-attributes origin) when older rows fall outside the window.
+      if (!PACKAGE_STATUSES.includes(entry.Status)) continue
       const ts = __dayjs(entry.Created)
       if (!ts.isValid()) continue
       const cur = earliest.get(entry.Title)
@@ -226,7 +203,7 @@ export default defineRoute((config) => {
     }
     const counts = Object.fromEntries(buildings.map(b => [b, new Array(dates.length).fill(0)]))
     for (const pkg of packages) {
-      const ts = pkg.Created || pkg.LastModifiedDate
+      const ts = pkg.SubmissionDate || pkg.Created
       if (!ts) continue
       const di = idxByKey.get(__dayjs(ts).format('YYYY-MM-DD'))
       if (di === undefined) continue
@@ -545,12 +522,12 @@ export default defineRoute((config) => {
   }
 
   async function fetchData(from, to) {
-    const packagesCaml = buildDateCaml(from, to, 'LastModifiedDate', true)
-    const timelineCaml = buildDateCaml(from, to, 'Created', false)
+    const packagesCaml = buildDateRangeCaml(from, to, 'SubmissionDate', true)
+    const timelineCaml = buildDateRangeCaml(from, to, 'Created', false)
 
     const prev = previousWindow(from, to)
-    const prevPackagesCaml = prev.from ? buildDateCaml(prev.from, prev.to, 'LastModifiedDate', true) : undefined
-    const prevTimelineCaml = prev.from ? buildDateCaml(prev.from, prev.to, 'Created', false) : undefined
+    const prevPackagesCaml = prev.from ? buildDateRangeCaml(prev.from, prev.to, 'SubmissionDate', true) : undefined
+    const prevTimelineCaml = prev.from ? buildDateRangeCaml(prev.from, prev.to, 'Created', false) : undefined
 
     const loading = Toast.loading('Loading reports...')
     try {

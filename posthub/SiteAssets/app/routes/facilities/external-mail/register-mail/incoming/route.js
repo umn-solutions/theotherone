@@ -10,7 +10,7 @@ import { createNavbar } from '../../../../../components/navbar.js'
 import { guardAccess } from '../../../../../utils/access.js'
 
 export default defineRoute((config) => {
-  config.setRouteTitle('Register Ingoing Mail')
+  config.setRouteTitle('Register Incoming Mail')
 
   // Facilities route: employee+ access required
   if (!guardAccess('EMPLOYEE')) return []
@@ -22,9 +22,9 @@ export default defineRoute((config) => {
       new LinkButton(getIcon('arrow-go-back-line'), 'facilities/external-mail/register-mail', {
         class: 'posthub__home-icon',
       }),
-      new Text('Ingoing Mail', { type: 'h1', class: 'posthub__page-title' }),
+      new Text('Incoming Mail', { type: 'h1', class: 'posthub__page-title' }),
     ], { class: 'posthub__title-with-icon' }),
-    new Text('Is this ingoing mail tracked?', {
+    new Text('Is this incoming mail tracked?', {
       type: 'p',
       class: 'posthub__page-subtitle',
     }),
@@ -32,7 +32,7 @@ export default defineRoute((config) => {
 
   const cards = [
     { title: 'With Tracking', desc: 'Register a multipart collection under one QR label, then track it through dispatch, reception and delivery.', route: 'tracked' },
-    { title: 'Without Tracking', desc: 'Quickly log ingoing items for reporting. No QR label, no workflow.', route: 'untracked' },
+    { title: 'Without Tracking', desc: 'Quickly log incoming items for reporting. No QR label, no workflow.', route: 'untracked' },
   ]
 
   const grid = new Container(
@@ -40,7 +40,7 @@ export default defineRoute((config) => {
       new Container([
         new Text(title, { type: 'h2', class: 'posthub__card-title' }),
         new Text(desc, { type: 'p', class: 'posthub__card-description' }),
-        new LinkButton('Open', `facilities/external-mail/register-mail/ingoing/${route}`, {
+        new LinkButton('Open', `facilities/external-mail/register-mail/incoming/${route}`, {
           class: 'posthub__card-btn',
         }),
       ], { class: 'posthub__card' })

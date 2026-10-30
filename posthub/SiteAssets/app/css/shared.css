@@ -537,6 +537,18 @@
   color: var(--color-fg-primary);
 }
 
+.posthub__bulk-pending {
+  display: flex;
+  align-items: center;
+}
+
+.posthub__bulk-pending-hint {
+  font-size: var(--font-size-200);
+  font-weight: var(--font-weight-semibold);
+  color: #b45309;
+  white-space: nowrap;
+}
+
 .posthub__bulk-note {
   padding: var(--space-l) 1.25rem;
   background: var(--color-bg-base);
@@ -591,7 +603,7 @@
    builders and the direction/tracking hub routes all share one source of truth)
    =================================== */
 
-/* Register hub wrappers (direction hub + ingoing tracking hub) */
+/* Register hub wrappers (direction hub + incoming tracking hub) */
 .external-mail-register__wrapper {
   display: flex;
   flex-direction: column;
@@ -805,9 +817,9 @@
   grid-template-columns: 1.1fr 1.1fr 0.6fr 1.7fr 1.3fr 2.5rem;
 }
 
-/* Tracked grid: Category | Subcategory | Description | From | Ext ID | remove */
+/* Tracked grid: Item # | Category | Subcategory | Description | From | Ext ID | remove */
 .external-mail-bulk__grid--tracked {
-  grid-template-columns: 1.1fr 1.1fr 1.7fr 1.3fr 1.3fr 2.5rem;
+  grid-template-columns: 0.7fr 1.1fr 1.1fr 1.7fr 1.3fr 1.3fr 2.5rem;
 }
 
 .external-mail-bulk__grid-header,

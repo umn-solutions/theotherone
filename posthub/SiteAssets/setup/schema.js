@@ -60,7 +60,7 @@ export const SCHEMA = {
 
   // Tracked collection HEADER -- one row per QR / tracking number. This is the
   // record the shared workflow engine advances (scan/dispatch/reception/delivery/
-  // reroute); per-item details live in ExternalMailItems. Only ingoing mail is tracked.
+  // reroute); per-item details live in ExternalMailItems. Only incoming mail is tracked.
   ExternalMailPackages: [
     titleField,
     { title: 'Direction', indexed: true },
@@ -83,6 +83,7 @@ export const SCHEMA = {
   // Tracked collection LINE ITEMS (parts). Title = FK to ExternalMailPackages.Title.
   ExternalMailItems: [
     titleField,
+    { title: 'ItemNumber', indexed: true }, // business-logic number, manually entered per item
     { title: 'Category', indexed: true },
     { title: 'SubCategory' },
     { title: 'Description', multiline: true },
@@ -90,7 +91,7 @@ export const SCHEMA = {
     { title: 'ExternalTrackingId', indexed: true },
   ],
 
-  // Untracked reporting log (ingoing + outgoing). One row per logged item; a single
+  // Untracked reporting log (incoming + outgoing). One row per logged item; a single
   // "Submit" shares one BatchId across its rows. No QR, no workflow.
   ExternalMailLog: [
     titleField,
@@ -99,11 +100,12 @@ export const SCHEMA = {
     { title: 'SubCategory' },
     { title: 'Quantity' },
     { title: 'Description', multiline: true },
-    { title: 'ExternalParty' },   // external org (sender for ingoing / recipient for outgoing)
+    { title: 'ExternalParty' },   // external org (sender for incoming / recipient for outgoing)
     { title: 'InternalContact' }, // internal person (UserIdentity JSON)
     { title: 'InternalOffice' },  // internal office (Locations title)
     { title: 'RegisteredByEmail', indexed: true },
     { title: 'BatchId', indexed: true },
+    { title: 'CollectionNotes', multiline: true }, // collection-level notes, same on every batch row
   ],
 }
 

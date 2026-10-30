@@ -52,7 +52,7 @@ export default defineRoute(async (config) => {
     {
       icon: 'inbox-line',
       title: 'Register Mail',
-      desc: 'Register ingoing or outgoing external mail -- tracked (QR label) or as a quick log.',
+      desc: 'Register incoming or outgoing external mail -- tracked (QR label) or as a quick log.',
       route: 'register-mail',
     },
     {

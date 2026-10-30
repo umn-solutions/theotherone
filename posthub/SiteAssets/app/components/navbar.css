@@ -10,11 +10,12 @@
   box-shadow: var(--shadow-8);
 }
 
-/* Left Section - Logo and Brand */
+/* Left Section - Logo and Brand (clickable: navigates home) */
 .navbar__left {
   display: flex;
   align-items: center;
   gap: var(--space-mNudge);
+  cursor: pointer;
 }
 
 .navbar__logo {

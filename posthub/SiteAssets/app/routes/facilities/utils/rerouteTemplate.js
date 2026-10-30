@@ -18,10 +18,11 @@ import {
 
 import { createNavbar } from '../../../components/navbar.js'
 import { createPackageDetailPanel } from '../../../components/packageDetailPanel.js'
-import { LIST_LOCATIONS, STATUS_LABELS } from '../../../utils/constants.js'
+import { LIST_LOCATIONS, STATUS_LABELS, TIMELINE_EVENT_REROUTE } from '../../../utils/constants.js'
 import { getLocationValue, getUserDisplayName, getUserEmail } from '../../../utils/user-helpers.js'
 import { fetchItemsAcrossLists } from '../../../utils/mail-context.js'
 import { getHubLocation, isHubLocationSet } from './hubLocation.js'
+import { guardUnsaved } from './unsavedGuard.js'
 
 /**
  * Shared Reroute route, parameterized by mail context. Scans a single QR label,
@@ -62,6 +63,15 @@ export async function createRerouteRoute(config, ctx) {
   let currentPackage = null
   let currentOrigin = null
   let scanDebounceTimer = null
+
+  // Unsaved-work guard: a scanned package sits in the reroute form (in memory)
+  // until the operator presses "Confirm Reroute". Warn before leaving so the
+  // scan + intended destination are never lost silently. Cleared on teardown.
+  guardUnsaved(
+    config,
+    () => currentPackage !== null,
+    'This reroute has not been confirmed yet. Leave without saving?',
+  )
 
   const pageLoader = new Loader(new Text('Scanning...'), { animation: 'pulse' })
   pageLoader.toggleLoader()
@@ -341,12 +351,16 @@ export async function createRerouteRoute(config, ctx) {
             LastModifiedDate: now,
           }, pkg['odata.etag'])
 
+          // Log the reroute as a dedicated timeline event (not a generic
+          // "in transit" row) so the detail-panel feed distinguishes it from the
+          // original dispatch. The package itself still transitions to in transit
+          // (the updateItem above); this row is the audit trail of the reroute.
           await siteApi.list(ctx.timelineList).createItem({
             Title: pkg.Title,
-            Status: newStatus,
+            Status: TIMELINE_EVENT_REROUTE,
             Location: hubLocation,
             ChangedBy: changedBy,
-            Notes: reason,
+            Notes: `Rerouted to ${destination} -- ${reason}`,
           })
 
           loading.success(`${pkg.Title} rerouted to ${destination}`)
@@ -355,6 +369,17 @@ export async function createRerouteRoute(config, ctx) {
           renderConfirmation(pkg.Title, destination)
         } catch (err) {
           console.error('[reroute] failed to reroute mail', err)
+          // Refresh the item in place so a retry carries the CURRENT etag -- the
+          // stale etag from the original scan is what makes a 412 repeat forever.
+          // Same object reference is kept so the typed destination + reason survive
+          // for an immediate retry (the form's FormFields are untouched).
+          try {
+            const fresh = await fetchItemsAcrossLists(siteApi, ctx.listNames)
+            const latest = fresh.find((p) => p.Title === pkg.Title)
+            if (latest) Object.assign(pkg, latest)
+          } catch (refreshErr) {
+            console.error('[reroute] failed to refresh item for retry', refreshErr)
+          }
           loading.error('Failed to reroute mail')
         } finally {
           if (confirmBtn) confirmBtn.isLoading = false

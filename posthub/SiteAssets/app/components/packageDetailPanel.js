@@ -20,6 +20,7 @@ import {
 	LIST_EXTERNAL_ITEMS,
 	LIST_EXTERNAL_PACKAGES,
 	STATUS_DESCRIPTIONS,
+	TIMELINE_EVENT_DESCRIPTIONS,
 	DIRECTION_LABELS,
 	MAIL_DIRECTIONS,
 } from "../utils/constants.js";
@@ -139,7 +140,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 
 	function createBatchItem(item, index, currentPkg) {
 		const isCurrent = item.Id === currentPkg.Id;
-		// Route reads external -> office for ingoing, office -> external for outgoing.
+		// Route reads external -> office for incoming, office -> external for outgoing.
 		const office = getLocationValue(item.InternalOffice) || "--";
 		const ext = item.ExternalParty || "--";
 		const route = item.Direction === "outgoing" ? `${office} -> ${ext}` : `${ext} -> ${office}`;
@@ -174,20 +175,29 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 
 	// A single line item (part) of a tracked collection. Rendered as a compact
 	// card -- the 650px panel is too narrow for a wide multi-column parts table.
+	// Every value carries an explicit label (reuses createField) so staff can tell
+	// what each datum is -- notably the carrier's External Tracking ID, which used
+	// to render as a bare unlabeled string.
 	function createPartItem(item, index) {
-		const meta = [categoryLabel(item)];
-		if (item.FromParty) meta.push(`From: ${item.FromParty}`);
-		if (item.ExternalTrackingId) meta.push(item.ExternalTrackingId);
+		const fields = [];
+		if (item.ItemNumber) fields.push(createField("Item Number", item.ItemNumber));
+		if (item.Category) fields.push(createField("Category", item.Category));
+		if (item.SubCategory) fields.push(createField("Subcategory", item.SubCategory));
+		if (item.FromParty) fields.push(createField("From", item.FromParty));
+		if (item.ExternalTrackingId)
+			fields.push(createField("External Tracking ID", item.ExternalTrackingId));
+
 		return new Container(
 			[
-				new Text(`${index + 1}. ${item.Description || categoryLabel(item)}`, {
+				new Text(`Item ${index + 1}`, {
 					type: "span",
-					class: "posthub__parts-item-title",
+					class: "posthub__parts-item-index",
 				}),
-				new Text(meta.join("  ·  "), {
-					type: "span",
-					class: "posthub__parts-item-meta",
+				new Text(item.Description || "No description", {
+					type: "p",
+					class: "posthub__parts-item-desc",
 				}),
+				new Container(fields, { class: "posthub__parts-item-fields" }),
 			],
 			{ class: "posthub__parts-item" },
 		);
@@ -235,10 +245,15 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 				type: "span",
 				class: "posthub__timeline-number",
 			}),
-			new Text(STATUS_DESCRIPTIONS[entry.Status] || entry.Status, {
-				type: "span",
-				class: "posthub__timeline-description",
-			}),
+			new Text(
+				STATUS_DESCRIPTIONS[entry.Status] ||
+					TIMELINE_EVENT_DESCRIPTIONS[entry.Status] ||
+					entry.Status,
+				{
+					type: "span",
+					class: "posthub__timeline-description",
+				},
+			),
 			new Text(entry.Location || "", {
 				type: "span",
 				class: "posthub__timeline-location",
@@ -302,9 +317,9 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 	// Log mail is untracked (no Status/timeline). Render its own fields and, in
 	// place of the timeline, list every item registered in the same batch.
 	async function showLog(pkg) {
-		const isIngoing = pkg.Direction === MAIL_DIRECTIONS.INGOING;
-		const externalRole = isIngoing ? "Sender" : "Recipient";
-		const internalRole = isIngoing ? "Recipient" : "Sender";
+		const isIncoming = pkg.Direction === MAIL_DIRECTIONS.INCOMING;
+		const externalRole = isIncoming ? "Sender" : "Recipient";
+		const internalRole = isIncoming ? "Recipient" : "Sender";
 		const fields = new Container(
 			[
 				createField("Tracking Number", pkg.Title),
@@ -318,6 +333,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 				createField("Office", getLocationValue(pkg.InternalOffice) || "N/A"),
 				createField("Registered By", resolveDisplayName(pkg.RegisteredByEmail)),
 				...(pkg.BatchId ? [createField("Batch ID", pkg.BatchId)] : []),
+				...(pkg.CollectionNotes ? [createField("Collection Notes", pkg.CollectionNotes)] : []),
 				...(pkg.Created
 					? [createField("Registered On", new Date(pkg.Created).toLocaleString())]
 					: []),

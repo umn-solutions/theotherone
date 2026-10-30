@@ -258,22 +258,35 @@
 .posthub__parts-item {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: 0.25rem;
   padding: 0.625rem var(--space-mNudge);
   background: var(--color-bg-subtle);
   border-radius: var(--radius-md);
   border-left: 3px solid var(--color-brand-primary);
 }
 
-.posthub__parts-item-title {
+.posthub__parts-item-index {
+  font-size: var(--font-size-100);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-brand-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.posthub__parts-item-desc {
   font-size: 0.8125rem;
   font-weight: var(--font-weight-medium);
   color: var(--color-fg-primary);
+  margin: 0;
 }
 
-.posthub__parts-item-meta {
-  font-size: 0.75rem;
-  color: var(--color-fg-secondary);
+/* Labeled fields inside a part card: two columns, mirrors the header
+   detail-fields grid but tighter to fit the narrow panel. */
+.posthub__parts-item-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sNudge) var(--space-mNudge);
+  margin-top: 0.25rem;
 }
 
 /* Action buttons (opt-in via createPackageDetailPanel actions) -- rendered in

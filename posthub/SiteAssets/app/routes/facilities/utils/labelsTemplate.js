@@ -7,6 +7,8 @@ import {
   getIcon,
   Toast,
   SiteApi,
+  CurrentUser,
+  UserIdentity,
   FormField,
   TextInput,
   PeoplePicker,
@@ -15,6 +17,8 @@ import {
 
 import { createNavbar } from '../../../components/navbar.js'
 import { createPackageDetailPanel } from '../../../components/packageDetailPanel.js'
+import { TIMELINE_EVENT_REPRINT } from '../../../utils/constants.js'
+import { getLocationValue } from '../../../utils/user-helpers.js'
 import { createPackageTable } from '../../../utils/package-table.js'
 import {
   trackingIdColumn,
@@ -184,6 +188,7 @@ export async function createLabelsRoute(config, ctx, { variant, searchBy = 'pers
             const loading = Toast.loading('Generating PDF...')
             try {
               await printQrLabelPdf(pkg)
+              logReprint(pkg, 'PDF')
               loading.success('PDF ready')
             } catch (err) {
               console.error('[labels] PDF print failed', err)
@@ -271,12 +276,35 @@ export async function createLabelsRoute(config, ctx, { variant, searchBy = 'pers
   // Hidden container for print-only QR label
   const printContainer = new Container([], { class: 'mail-labels__print-container' })
 
+  // Record a reprint on the shared timeline so it surfaces in the detail-panel
+  // events feed. Only reprints are tracked -- the initial print happens as part
+  // of registration/dispatch, already represented by those status entries.
+  // Fire-and-forget: the label already printed, so a logging failure must not
+  // disrupt the user -- log it and move on.
+  async function logReprint(pkg, format) {
+    if (!isReprint) return
+    try {
+      const user = new CurrentUser()
+      await siteApi.list(ctx.timelineList).createItem({
+        Title: pkg.Title,
+        Status: TIMELINE_EVENT_REPRINT,
+        Location: getLocationValue(pkg.CurrentLocation) || '',
+        ChangedBy: UserIdentity.fromCurrentUser(user),
+        Notes: `${format} format`,
+      })
+    } catch (err) {
+      console.error('[labels] failed to log reprint timeline entry', { title: pkg.Title, err })
+    }
+  }
+
   function handlePrintLabel(pkg) {
     printQrLabel(pkg, printContainer)
+    logReprint(pkg, 'Standard')
   }
 
   function handlePrintLabelA4(pkg) {
     printQrLabelA4(pkg, printContainer)
+    logReprint(pkg, 'A4')
   }
 
   updateView()
