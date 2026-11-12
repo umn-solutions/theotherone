@@ -27,6 +27,31 @@ export function defaultDateTo() {
 }
 
 /**
+ * Builds the bare CAML clause (no `<Where>`) for a date-range on the given field,
+ * for callers combining it with other conditions.
+ *
+ * @param {string} from  Start date in DD-MM-YYYY format.
+ * @param {string} to    End date in DD-MM-YYYY format.
+ * @param {string} fieldName  SharePoint internal field name.
+ * @returns {string}  CAML clause, or '' when no bounds.
+ */
+export function buildDateRangeClause(from, to, fieldName) {
+  const fromISO = toISOStart(from)
+  const toISO_ = toISOEnd(to)
+
+  const fromClause = fromISO
+    ? `<Geq><FieldRef Name='${fieldName}'/><Value Type='Text'>${fromISO}</Value></Geq>`
+    : ''
+  const toClause = toISO_
+    ? `<Leq><FieldRef Name='${fieldName}'/><Value Type='Text'>${toISO_}</Value></Leq>`
+    : ''
+
+  return fromClause && toClause
+    ? `<And>${fromClause}${toClause}</And>`
+    : fromClause || toClause
+}
+
+/**
  * Builds a CAML View query filtering by a date-range on the given field.
  *
  * @param {string} from  Start date in DD-MM-YYYY format.
@@ -38,20 +63,8 @@ export function defaultDateTo() {
  * @returns {string|undefined}  CAML `<View>` string, or undefined when no bounds.
  */
 export function buildDateRangeCaml(from, to, fieldName, includeEmpty) {
-  const fromISO = toISOStart(from)
-  const toISO_ = toISOEnd(to)
-  if (!fromISO && !toISO_) return undefined
-
-  const fromClause = fromISO
-    ? `<Geq><FieldRef Name='${fieldName}'/><Value Type='Text'>${fromISO}</Value></Geq>`
-    : ''
-  const toClause = toISO_
-    ? `<Leq><FieldRef Name='${fieldName}'/><Value Type='Text'>${toISO_}</Value></Leq>`
-    : ''
-
-  const rangeClause = fromClause && toClause
-    ? `<And>${fromClause}${toClause}</And>`
-    : fromClause || toClause
+  const rangeClause = buildDateRangeClause(from, to, fieldName)
+  if (!rangeClause) return undefined
 
   let where = rangeClause
   if (includeEmpty) {

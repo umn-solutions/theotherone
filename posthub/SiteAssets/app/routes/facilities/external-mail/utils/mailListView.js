@@ -16,8 +16,7 @@ import {
 
 import { createNavbar } from '../../../../components/navbar.js'
 import { createPackageDetailPanel } from '../../../../components/packageDetailPanel.js'
-import { printQrLabel } from '../../utils/qrLabelPrint.js'
-import { printSignatureDoc } from '../../utils/qrSignatureDoc.js'
+import { createSearchPanelActions } from '../../utils/searchPanelActions.js'
 import { dataToXLSX, downloadFile } from '../../../../libs/nofbiz/nofbiz.excelparser.js'
 import { createPackageTable } from '../../../../utils/package-table.js'
 import {
@@ -80,8 +79,7 @@ const toExportRows = (packages) => packages.map((pkg) => ({
  * detail panel.
  *
  * @param {object} config SPARC route config
- * @param {object} opts { title, subtitle, emptyTitle, emptyBody, classPrefix, enableReprint }
- *   enableReprint adds a single Reprint Label button to the detail-panel footer.
+ * @param {object} opts { title, subtitle, emptyTitle, emptyBody, classPrefix }
  * @returns {Promise<[object, object]>} [navbar, contentArea]
  */
 export async function createExternalMailListView(config, {
@@ -90,7 +88,6 @@ export async function createExternalMailListView(config, {
   emptyTitle,
   emptyBody,
   classPrefix,
-  enableReprint = false,
 }) {
   config.setRouteTitle(title)
 
@@ -99,18 +96,15 @@ export async function createExternalMailListView(config, {
   // Hidden container the print helpers populate before window.print().
   const printContainer = new Container([], { class: 'mail-labels__print-container' })
 
-  // Detail-panel footer actions: reprint the QR label (any stage), plus -- only for
-  // off-platform items awaiting signature -- reprint the courier Mail Order document.
-  const reprintActions = enableReprint
-    ? [
-        { label: 'Reprint Label', onClick: (pkg) => printQrLabel(pkg, printContainer) },
-        {
-          label: 'Reprint Document',
-          isVisible: (pkg) => pkg.Status === 'awaiting signature',
-          onClick: (pkg) => printSignatureDoc(pkg, printContainer),
-        },
-      ]
-    : []
+  // Detail-panel actions shared with the internal search (same status -> same
+  // buttons). After a delete, drop the row locally instead of refetching every list.
+  const { actions: detailActions, dialog: deleteDialog } = createSearchPanelActions({
+    printContainer,
+    onDeleted: (pkg) => {
+      allItems = allItems.filter((p) => p !== pkg)
+      applyFilters()
+    },
+  })
 
   // Both lists are always fetched; `mailTypes` controls which are shown. Tracked
   // mail is always visible; untracked (logged) mail is hidden by default and
@@ -138,7 +132,10 @@ export async function createExternalMailListView(config, {
   // powers the "Item Tracking ID" filter (match a collection by any item's carrier id).
   let itemIndex = new Map()
 
-  const { show: showDetailPanel } = createPackageDetailPanel({ actions: reprintActions })
+  const { show: showDetailPanel } = createPackageDetailPanel({
+    showSmartCardId: true,
+    actions: detailActions,
+  })
   const navbar = createNavbar()
 
   const columns = [
@@ -367,5 +364,5 @@ export async function createExternalMailListView(config, {
   ])
   applyFilters()
 
-  return [navbar, contentArea]
+  return [navbar, contentArea, deleteDialog]
 }

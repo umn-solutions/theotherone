@@ -4,7 +4,6 @@ import {
   Text,
   Button,
   LinkButton,
-  Dialog,
   getIcon,
   Toast,
   SiteApi,
@@ -12,7 +11,7 @@ import {
   __dayjs,
 } from '../../../../libs/nofbiz/nofbiz.base.js'
 import { dataToXLSX, downloadFile } from '../../../../libs/nofbiz/nofbiz.excelparser.js'
-import { deletePackageWithTimeline, sendChaseEmail } from '../../utils/package-actions.js'
+import { createSearchPanelActions } from '../../utils/searchPanelActions.js'
 
 import { createNavbar } from '../../../../components/navbar.js'
 import { createPackageDetailPanel } from '../../../../components/packageDetailPanel.js'
@@ -24,7 +23,7 @@ import {
   destinationColumn, senderColumn, recipientColumn, dateColumn, packageDetailsColumn,
 } from '../../../../utils/package-table-columns.js'
 import { createEmptyState } from '../../../../utils/empty-state.js'
-import { parseFilterDate, defaultDateFrom, defaultDateTo, buildDateRangeCaml } from '../../../../utils/date-helpers.js'
+import { parseFilterDate, defaultDateFrom, defaultDateTo, buildDateRangeClause } from '../../../../utils/date-helpers.js'
 import { createPackageFilters } from '../../../../utils/package-filters.js'
 import { guardAccess } from '../../../../utils/access.js'
 
@@ -67,22 +66,14 @@ export default defineRoute((config) => {
     dateTo: defaultDateTo(),
   }
 
-  // Per-item actions in the detail panel -- search page only. Chase shows for
-  // arrived mail, Delete for pending mail (no day constraint here).
-  const detailActions = [
-    {
-      label: 'Chase',
-      variant: 'primary',
-      isVisible: (pkg) => pkg.Status === 'arrived',
-      onClick: (pkg, ctx) => chaseItem(pkg, ctx),
-    },
-    {
-      label: 'Delete',
-      variant: 'danger',
-      isVisible: (pkg) => pkg.Status === 'pending',
-      onClick: (pkg, ctx) => requestDelete(pkg, ctx),
-    },
-  ]
+  // Hidden container the print helpers populate before window.print().
+  const printContainer = new Container([], { class: 'mail-labels__print-container' })
+
+  // Detail-panel actions shared with the external search (same status -> same buttons).
+  const { actions: detailActions, dialog: deleteDialog } = createSearchPanelActions({
+    printContainer,
+    onDeleted: () => fetchPackages(filters.dateFrom, filters.dateTo),
+  })
 
   const { show: showDetailPanel } = createPackageDetailPanel({
     showSmartCardId: true,
@@ -115,7 +106,8 @@ export default defineRoute((config) => {
     searchResults = allPackages.filter(pkg => {
       // When tracking is active, the fetch was global (no date CAML) --
       // skip the date-range client check so out-of-range matches remain visible.
-      if (!filters.tracking) {
+      // Pending mail has no SubmissionDate and always shows, whatever the range.
+      if (!filters.tracking && pkg.Status !== 'pending') {
         const dateToCheck = pkg.SubmissionDate || pkg.Created
         if (fromDate && dateToCheck) {
           if (__dayjs(dateToCheck).isBefore(fromDate, 'day')) return false
@@ -171,7 +163,7 @@ export default defineRoute((config) => {
 
   // Fetch packages: branches on whether a tracking id is present.
   // - tracking non-empty: global search via Contains on indexed Title (no date clause)
-  // - tracking empty: date-ranged fetch via SubmissionDate CAML
+  // - tracking empty: SubmissionDate range, plus all pending mail regardless of range
   async function fetchPackages(from, to) {
     let caml
     if (filters.tracking) {
@@ -179,7 +171,10 @@ export default defineRoute((config) => {
       const escaped = filters.tracking.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       caml = `<View><Query><Where><Contains><FieldRef Name='Title'/><Value Type='Text'>${escaped}</Value></Contains></Where></Query></View>`
     } else {
-      caml = buildDateRangeCaml(from, to, 'SubmissionDate', true)
+      const rangeClause = buildDateRangeClause(from, to, 'SubmissionDate')
+      caml = rangeClause
+        ? `<View><Query><Where><Or>${rangeClause}<Eq><FieldRef Name='Status'/><Value Type='Text'>pending</Value></Eq></Or></Where></Query></View>`
+        : undefined
     }
 
     const loading = Toast.loading('Loading mail...')
@@ -206,7 +201,7 @@ export default defineRoute((config) => {
     pageLoader,
   ], { class: 'search-package__body' })
 
-  const contentArea = new Container([pageHeader, bodyArea], { class: 'posthub__page-content' })
+  const contentArea = new Container([pageHeader, bodyArea, printContainer], { class: 'posthub__page-content' })
 
   loadData()
 
@@ -283,66 +278,6 @@ export default defineRoute((config) => {
     await fetchPackages(filters.dateFrom, filters.dateTo)
     pageLoader.disable()
   }
-
-  // --- Detail-panel actions: chase (arrived) / delete (pending) ---
-  let pendingDelete = null
-
-  async function chaseItem(pkg, { close }) {
-    const loading = Toast.loading('Sending chase email...')
-    try {
-      await sendChaseEmail(pkg)
-      loading.success('Chase email sent')
-      close()
-    } catch (err) {
-      console.error('[search-package] chase email failed', err)
-      loading.error('Failed to send chase email')
-    }
-  }
-
-  function requestDelete(pkg, { close }) {
-    pendingDelete = { pkg, closePanel: close }
-    deleteConfirmText.children = `Delete "${pkg.Title}" and its timeline history? This cannot be undone.`
-    deleteDialog.open()
-  }
-
-  async function confirmDelete() {
-    if (!pendingDelete) return
-    const { pkg, closePanel } = pendingDelete
-    confirmDeleteBtn.isLoading = true
-    const loading = Toast.loading('Deleting...')
-    try {
-      await deletePackageWithTimeline(siteApi, pkg)
-      loading.success('Package deleted')
-      deleteDialog.close()
-      closePanel?.()
-      await fetchPackages(filters.dateFrom, filters.dateTo)
-    } catch (err) {
-      console.error('[search-package] delete failed', err)
-      loading.error('Failed to delete package')
-    } finally {
-      confirmDeleteBtn.isLoading = false
-      pendingDelete = null
-    }
-  }
-
-  const deleteConfirmText = new Text('', { type: 'p' })
-  const cancelDeleteBtn = new Button('Cancel', {
-    variant: 'secondary',
-    onClickHandler: () => deleteDialog.close(),
-  })
-  const confirmDeleteBtn = new Button('Delete', {
-    variant: 'danger',
-    onClickHandler: () => confirmDelete(),
-  })
-  const deleteDialog = new Dialog({
-    title: 'Delete Package',
-    content: deleteConfirmText,
-    footer: new Container([cancelDeleteBtn, confirmDeleteBtn], {
-      class: 'search-package__dialog-footer',
-    }),
-    variant: 'error',
-  })
-  deleteDialog.render()
 
   return [navbar, contentArea, deleteDialog]
 })

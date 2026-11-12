@@ -44,6 +44,22 @@ export const EXTERNAL_MAIL = {
 }
 
 /**
+ * Fetch items from one list, tagging each with its source list on `__listName`.
+ * Rejects on failure so the caller decides how to surface it.
+ *
+ * @param {object} siteApi
+ * @param {string} listName
+ * @param {object|string} [query]  CAML query object/string (omit for all items)
+ * @param {object} [options]       getItems options (orderBy, limit, viewFields)
+ * @returns {Promise<object[]>}
+ */
+export async function fetchTaggedItems(siteApi, listName, query, options) {
+  const items = await siteApi.list(listName).getItems(query, options)
+  for (const it of items) it.__listName = listName
+  return items
+}
+
+/**
  * Fetch items from several lists, tagging each with its source list on
  * `__listName` so callers can write back to the correct list. Errors on one
  * list are logged and skipped (best-effort merge).
@@ -58,11 +74,7 @@ export async function fetchItemsAcrossLists(siteApi, listNames, query, options) 
   const out = []
   for (const name of listNames) {
     try {
-      const items = await siteApi.list(name).getItems(query, options)
-      for (const it of items) {
-        it.__listName = name
-        out.push(it)
-      }
+      out.push(...await fetchTaggedItems(siteApi, name, query, options))
     } catch (err) {
       console.error('[mail-context] failed to load list ' + name, err)
     }

@@ -7,8 +7,6 @@ import {
   getIcon,
   Toast,
   SiteApi,
-  CurrentUser,
-  UserIdentity,
   FormField,
   TextInput,
   PeoplePicker,
@@ -18,7 +16,6 @@ import {
 import { createNavbar } from '../../../components/navbar.js'
 import { createPackageDetailPanel } from '../../../components/packageDetailPanel.js'
 import { TIMELINE_EVENT_REPRINT } from '../../../utils/constants.js'
-import { getLocationValue } from '../../../utils/user-helpers.js'
 import { createPackageTable } from '../../../utils/package-table.js'
 import {
   trackingIdColumn,
@@ -32,6 +29,7 @@ import {
 import { fetchItemsAcrossLists } from '../../../utils/mail-context.js'
 import { printQrLabel, printQrLabelA4 } from './qrLabelPrint.js'
 import { printQrLabelPdf } from './qrLabelPdf.js'
+import { logTimelineEvent } from './package-actions.js'
 
 /**
  * Shared Print / Reprint labels route, parameterized by mail context + variant.
@@ -49,6 +47,8 @@ export async function createLabelsRoute(config, ctx, { variant, searchBy = 'pers
   const isReprint = variant === 'reprint'
   const byTracking = searchBy === 'tracking'
   const verb = isReprint ? 'Reprint' : 'Print'
+  // Print covers pending mail only; reprint covers every item, whatever its status.
+  const mailNoun = isReprint ? 'mail' : 'pending mail'
   config.setRouteTitle(`${verb} Labels`)
 
   const siteApi = new SiteApi()
@@ -111,7 +111,7 @@ export async function createLabelsRoute(config, ctx, { variant, searchBy = 'pers
       new Text(`Search for ${searchLabel}`, { type: 'h2', class: 'posthub__prompt-title' }),
       new Text(byTracking
         ? 'Type or scan a tracking number to reprint its QR label'
-        : `Type a name or email to find ${isReprint ? 'active' : 'pending'} mail`, {
+        : `Type a name or email to find ${mailNoun}`, {
         type: 'p',
         class: 'posthub__prompt-subtitle',
       }),
@@ -122,15 +122,12 @@ export async function createLabelsRoute(config, ctx, { variant, searchBy = 'pers
   async function handlePersonSelect(email, displayName) {
     pageLoader.toggleLoader()
     try {
-      const statusQuery = isReprint
-        ? { value: ['in transit', 'arrived'], operator: 'Or' }
-        : 'pending'
       packages = await fetchItemsAcrossLists(siteApi, ctx.listNames, {
         [searchField]: email,
-        Status: statusQuery,
+        ...(isReprint ? {} : { Status: 'pending' }),
       })
       hasSearched = true
-      Toast.success(`Found ${packages.length} ${isReprint ? 'active' : 'pending'} mail item(s) for ${displayName}`)
+      Toast.success(`Found ${packages.length} ${mailNoun} item(s) for ${displayName}`)
       updateView()
     } catch (err) {
       console.error('[labels] failed to load mail', err)
@@ -223,16 +220,14 @@ export async function createLabelsRoute(config, ctx, { variant, searchBy = 'pers
       tableContainer.children = [
         new Container([
           new Container([
-            new Text(byTracking ? 'No mail found' : `No ${isReprint ? 'active' : 'pending'} mail found`, {
+            new Text(byTracking ? 'No mail found' : `No ${mailNoun} found`, {
               type: 'h2',
               class: 'posthub__prompt-title',
             }),
             new Text(
               byTracking
                 ? 'No mail matches that tracking number.'
-                : isReprint
-                  ? `This ${searchNoun} has no mail with "in transit" or "arrived" status.`
-                  : `This ${searchNoun} has no mail with "pending" status.`,
+                : `This ${searchNoun} has no ${mailNoun}.`,
               { type: 'p', class: 'posthub__prompt-subtitle' },
             ),
             new Button(`Search Another ${searchLabel}`, {
@@ -279,22 +274,8 @@ export async function createLabelsRoute(config, ctx, { variant, searchBy = 'pers
   // Record a reprint on the shared timeline so it surfaces in the detail-panel
   // events feed. Only reprints are tracked -- the initial print happens as part
   // of registration/dispatch, already represented by those status entries.
-  // Fire-and-forget: the label already printed, so a logging failure must not
-  // disrupt the user -- log it and move on.
-  async function logReprint(pkg, format) {
-    if (!isReprint) return
-    try {
-      const user = new CurrentUser()
-      await siteApi.list(ctx.timelineList).createItem({
-        Title: pkg.Title,
-        Status: TIMELINE_EVENT_REPRINT,
-        Location: getLocationValue(pkg.CurrentLocation) || '',
-        ChangedBy: UserIdentity.fromCurrentUser(user),
-        Notes: `${format} format`,
-      })
-    } catch (err) {
-      console.error('[labels] failed to log reprint timeline entry', { title: pkg.Title, err })
-    }
+  function logReprint(pkg, format) {
+    if (isReprint) logTimelineEvent(pkg, TIMELINE_EVENT_REPRINT, `${format} format`)
   }
 
   function handlePrintLabel(pkg) {

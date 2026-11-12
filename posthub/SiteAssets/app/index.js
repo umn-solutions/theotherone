@@ -22,6 +22,7 @@ new StyleResource(resolvePath("@/components/chartCard.css"));
 new StyleResource(resolvePath("@/components/charts/charts.css"));
 new StyleResource(resolvePath("@/css/mail-action.css"));
 new StyleResource(resolvePath("@/css/mail-workflow.css"));
+new StyleResource(resolvePath("@/css/reports.css"));
 new StyleResource(resolvePath("@/components/imageCard.css"));
 
 // Initialize current user + resolve access rank in one bootstrap.
@@ -70,6 +71,8 @@ new Router([
 	"facilities/external-mail/search", // Route: /facilities/external-mail/search
 	"facilities/external-mail/config", // Admin-only: manage categories/subcategories/sources
 	"facilities/manage-locations", // Route: /facilities/manage-locations
-	"facilities/reports", // Route: /facilities/reports
+	"facilities/reports", // Route: /facilities/reports (current-month summary)
+	"facilities/reports/internal-details", // Month-scoped internal mail dashboard
+	"facilities/reports/external-details", // Month-scoped external mail dashboard
 	"facilities/maintenance", // Route: /facilities/maintenance
 ]);

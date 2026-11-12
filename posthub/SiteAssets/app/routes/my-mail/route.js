@@ -17,8 +17,12 @@ import {
 
 import { createNavbar } from '../../components/navbar.js'
 import { createPackageDetailPanel } from '../../components/packageDetailPanel.js'
-import { LIST_PACKAGES, LIST_LOCATIONS, STATUS_LABELS } from '../../utils/constants.js'
-import { getUserDisplayName, getLocationValue } from '../../utils/user-helpers.js'
+import {
+  LIST_PACKAGES, LIST_LOCATIONS, LIST_EXTERNAL_PACKAGES, LIST_EXTERNAL_LOG,
+  STATUS_LABELS, MAIL_DIRECTIONS,
+} from '../../utils/constants.js'
+import { fetchTaggedItems } from '../../utils/mail-context.js'
+import { getUserDisplayName, getUserEmail, getLocationValue } from '../../utils/user-helpers.js'
 import { createPackageTable } from '../../utils/package-table.js'
 import {
   trackingIdColumn, statusBadgeColumn, currentLocationColumn,
@@ -84,16 +88,53 @@ export default defineRoute((config) => {
 
   // --- Data fetching ---
 
+  // Maps an untracked log row onto the package shape used by the tabs, columns and
+  // filters. Direction sets the internal contact's role: outgoing = sender (Sent
+  // tab), incoming = recipient (Incoming tab). Original fields are kept for the
+  // detail panel. Log rows have no Status or CurrentLocation (no workflow).
+  function normalizeLogRow(row) {
+    const isOutgoing = row.Direction === MAIL_DIRECTIONS.OUTGOING
+    const contactEmail = getUserEmail(row.InternalContact)
+    const externalParty = { email: '', displayName: row.ExternalParty || '' }
+    return Object.assign(row, {
+      Sender: isOutgoing ? row.InternalContact : externalParty,
+      SenderEmail: isOutgoing ? contactEmail : '',
+      Recipient: isOutgoing ? externalParty : row.InternalContact,
+      RecipientEmail: isOutgoing ? '' : contactEmail,
+      DestinationLocation: isOutgoing ? row.ExternalParty : row.InternalOffice,
+      SubmissionDate: row.Created,
+    })
+  }
+
   async function fetchPackages(from, to) {
     const caml = buildMyMailCaml(from, to)
     const loading = Toast.loading('Loading mail...')
-    try {
-      allMyPackages = await siteApi.list(LIST_PACKAGES).getItems(caml)
-      loading.dismiss()
-    } catch (err) {
-      console.error('[my-mail] load packages failed', err)
-      loading.error('Failed to load mail')
-    }
+    // InternalContact is UserIdentity JSON, so match the email inside it. The date
+    // range is applied client-side in applyFilters (log rows have no SubmissionDate).
+    const logQuery = { InternalContact: { value: currentUserEmail, operator: 'Contains' } }
+    const sources = [
+      { list: LIST_PACKAGES, load: () => fetchTaggedItems(siteApi, LIST_PACKAGES, caml) },
+      { list: LIST_EXTERNAL_PACKAGES, load: () => fetchTaggedItems(siteApi, LIST_EXTERNAL_PACKAGES, caml) },
+      {
+        list: LIST_EXTERNAL_LOG,
+        load: async () => (await fetchTaggedItems(siteApi, LIST_EXTERNAL_LOG, logQuery)).map(normalizeLogRow),
+      },
+    ]
+    // One failing list must not hide mail from the others.
+    const results = await Promise.allSettled(sources.map(s => s.load()))
+    const failures = []
+    allMyPackages = results.flatMap((result, i) => {
+      if (result.status === 'fulfilled') return result.value
+      console.error(`[my-mail] load ${sources[i].list} failed`, result.reason)
+      failures.push(sources[i].list)
+      return []
+    })
+    // Interleave the lists chronologically (each one alone came back in Id order).
+    const rowTime = (p) => __dayjs(p.SubmissionDate || p.Created).valueOf()
+    allMyPackages.sort((a, b) => rowTime(a) - rowTime(b))
+    if (failures.length === 0) loading.dismiss()
+    else if (failures.length === sources.length) loading.error('Failed to load mail')
+    else loading.error('Some mail could not be loaded')
     clearClientFilters()
     rebuildDatasets()
     applyFilters()
@@ -109,25 +150,30 @@ export default defineRoute((config) => {
 
   // --- ComboBox datasets ---
 
+  // Filter identity for a party. External parties have no email, so use their name.
+  const senderKey = (p) => p.SenderEmail || getUserDisplayName(p.Sender)
+  const recipientKey = (p) => p.RecipientEmail || getUserDisplayName(p.Recipient)
+
   function rebuildDatasets() {
     const base = getBasePackages()
 
-    const statuses = [...new Set(base.map(p => p.Status))]
+    // Log rows have no Status.
+    const statuses = [...new Set(base.map(p => p.Status).filter(Boolean))]
     statusComboBox.dataset = statuses.map(s => ({ label: STATUS_LABELS[s], value: s }))
 
-    const emailMap = new Map()
+    const partyMap = new Map()
     base.forEach(p => {
       ;[
-        { email: p.SenderEmail, display: getUserDisplayName(p.Sender) },
-        { email: p.RecipientEmail, display: getUserDisplayName(p.Recipient) },
-      ].forEach(({ email, display }) => {
-        if (email && email !== currentUserEmail && !emailMap.has(email)) {
-          emailMap.set(email, display)
+        { key: senderKey(p), display: getUserDisplayName(p.Sender) },
+        { key: recipientKey(p), display: getUserDisplayName(p.Recipient) },
+      ].forEach(({ key, display }) => {
+        if (key && key !== currentUserEmail && !partyMap.has(key)) {
+          partyMap.set(key, display)
         }
       })
     })
-    senderRecipientComboBox.dataset = [...emailMap].map(([email, name]) => ({
-      label: name, value: email
+    senderRecipientComboBox.dataset = [...partyMap].map(([key, name]) => ({
+      label: name, value: key
     }))
 
     trackingIdComboBox.dataset = base.map(p => ({ label: p.Title, value: p.Title }))
@@ -150,7 +196,7 @@ export default defineRoute((config) => {
 
       if (filters.status.length > 0 && !filters.status.includes(pkg.Status)) return false
       if (filters.senderRecipient.length > 0) {
-        if (!filters.senderRecipient.includes(pkg.SenderEmail) && !filters.senderRecipient.includes(pkg.RecipientEmail)) return false
+        if (!filters.senderRecipient.includes(senderKey(pkg)) && !filters.senderRecipient.includes(recipientKey(pkg))) return false
       }
       if (filters.trackingId.length > 0 && !filters.trackingId.includes(pkg.Title)) return false
       if (filters.currentLocation.length > 0 && !filters.currentLocation.includes(getLocationValue(pkg.CurrentLocation))) return false

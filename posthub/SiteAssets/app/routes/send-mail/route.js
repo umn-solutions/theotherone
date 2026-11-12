@@ -28,6 +28,7 @@ import {
 	USER_DB_LINK,
 } from "../../utils/constants.js";
 import { makeTrackingId } from "../../utils/tracking-id.js";
+import { cleanText, notifyRemovedChars } from "../../utils/text-field.js";
 
 export default defineRoute(async (config) => {
 	config.setRouteTitle("Send Mail");
@@ -252,7 +253,7 @@ export default defineRoute(async (config) => {
 				typeof destinationRaw === "string"
 					? destinationRaw
 					: (destinationRaw?.value ?? null);
-			const details = detailsField.value;
+			const details = cleanText(detailsField.value);
 
 			if (!recipientIdentity) {
 				Toast.error("Recipient is required");
@@ -263,6 +264,7 @@ export default defineRoute(async (config) => {
 				Toast.error("Destination office is required");
 				return;
 			}
+			notifyRemovedChars({ Details: detailsField.value });
 
 			createBtn.isLoading = true;
 			contentLoader.toggleLoader();

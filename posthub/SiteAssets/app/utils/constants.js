@@ -53,12 +53,16 @@ export const STATUS_DESCRIPTIONS = {
 // so the detail-panel timeline renders them inline, but deliberately kept out of
 // PACKAGE_STATUSES so status analytics (reports, origin index) ignore them.
 export const TIMELINE_EVENT_CHASE = "chase";
+export const TIMELINE_EVENT_ARRIVAL_NOTICE = "arrival notice";
 export const TIMELINE_EVENT_REPRINT = "reprint";
+export const TIMELINE_EVENT_REPRINT_DOCUMENT = "reprint document";
 export const TIMELINE_EVENT_REROUTE = "reroute";
 
 export const TIMELINE_EVENT_DESCRIPTIONS = {
 	[TIMELINE_EVENT_CHASE]: "Pickup reminder sent to recipient",
+	[TIMELINE_EVENT_ARRIVAL_NOTICE]: "Arrival notification sent to recipient",
 	[TIMELINE_EVENT_REPRINT]: "QR label reprinted",
+	[TIMELINE_EVENT_REPRINT_DOCUMENT]: "Mail Order document reprinted",
 	[TIMELINE_EVENT_REROUTE]: "Rerouted to correct destination",
 };
 

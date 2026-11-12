@@ -130,15 +130,9 @@ export default defineRoute((config) => {
           { type: 'p' })]
       ),
       new AccordionItem(
-        'Can I cancel or change the recipient after drop-off?',
-        [new Text(
-          'Contact facilities. Once a package is <em>in transit</em>, changes need staff intervention to keep the audit trail consistent.',
-          { type: 'p' })]
-      ),
-      new AccordionItem(
         'Who can see my mail records?',
         [new Text(
-          'You see your own (sent and received). Facilities staff see all packages for routing. Records are kept for audit.',
+          '<strong>My Mail</strong> shows what you sent and received. Facilities staff see all packages for routing. Records of dispatched mail are kept for audit. Registrations never dropped off may be removed after 7 days.',
           { type: 'p' })]
       ),
       new AccordionItem(

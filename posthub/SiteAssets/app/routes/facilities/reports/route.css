@@ -1,87 +1,101 @@
-/* REPORTS - route layout */
+/* REPORTS SUMMARY - internal (left) vs external (right), current month.
+   Shared detail-dashboard layout lives in css/reports.css. */
 
-.reports__body {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-  position: relative;
-}
-
-.reports__content {
+.reports-summary__body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
+  position: relative;
   padding: var(--space-l) var(--space-xxl);
-  gap: var(--space-xxl);
 }
 
-/* Direct children must not shrink, otherwise flex-column squishes chart cards
-   instead of producing a scrollbar -- lower sections become unreachable. */
-.reports__content > * {
-  flex-shrink: 0;
-}
-
-.reports__kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: var(--space-l);
-  padding-bottom: var(--space-l);
-  border-bottom: var(--stroke-thin) solid var(--color-stroke-subtle);
-}
-
-.reports__overview {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-xxl);
-}
-
-.reports__overview .posthub__chart-card {
-  height: 20rem;
-}
-
-.reports__detail-2col {
+.reports-summary__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-xxl);
+  align-items: start;
 }
 
-.reports__detail-2col .posthub__chart-card {
-  height: 22rem;
+.reports-summary__column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-l);
 }
 
-/* Summary: indicator table (wide) + status donut (narrow) */
-.reports__summary {
+.reports-summary__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-l);
+  padding: var(--space-xl);
+  background: var(--color-bg-base);
+  border: var(--stroke-thin) solid var(--color-stroke-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.reports-summary__panel:hover {
+  border-color: var(--color-brand-stroke);
+  box-shadow: var(--shadow-8);
+}
+
+.reports-summary__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-m);
+}
+
+.reports-summary__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-primary);
+}
+
+.reports-summary__icon svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.reports-summary__title {
+  font-size: var(--font-size-500);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+  margin: 0;
+}
+
+.reports-summary__description {
+  font-size: var(--font-size-200);
+  color: var(--color-fg-secondary);
+  margin: 0;
+}
+
+.reports-summary__kpis {
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: var(--space-xxl);
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-m);
 }
 
-.reports__summary .posthub__chart-card {
-  height: 22rem;
+.reports-summary__panel .posthub__chart-card {
+  height: 20rem;
 }
 
-/* Matrix + indicator table can exceed the card; let their canvas scroll
-   rather than clip. */
-.reports__card--scroll .posthub__chart-card__canvas {
-  overflow: auto;
+.reports-summary__button {
+  align-self: flex-end;
 }
 
 @media (max-width: 1280px) {
-  .reports__kpi-grid { grid-template-columns: repeat(3, 1fr); }
-  .reports__overview { grid-template-columns: 1fr 1fr; }
+  .reports-summary__kpis { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 1024px) {
-  .reports__overview { grid-template-columns: 1fr; }
-  .reports__detail-2col { grid-template-columns: 1fr; }
-  .reports__summary { grid-template-columns: 1fr; }
-  .reports__kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .reports-summary__grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 768px) {
-  .reports__body { flex-direction: column; }
-  .reports__content { padding: var(--space-l); gap: var(--space-l); }
-  .reports__kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .reports-summary__body { padding: var(--space-l); }
 }

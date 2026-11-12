@@ -28,9 +28,9 @@ import {
   LIST_EXTERNAL_PACKAGES,
   MAIL_DIRECTIONS,
 } from '../../../utils/constants.js'
-import { sendChaseEmail, deletePackageWithTimeline } from '../utils/package-actions.js'
+import { sendChaseEmail, deletePackageWithTimeline, hasChaseableRecipient } from '../utils/package-actions.js'
 import { guardAccess } from '../../../utils/access.js'
-import { getLocationValue, getUserEmail } from '../../../utils/user-helpers.js'
+import { getLocationValue } from '../../../utils/user-helpers.js'
 
 export default defineRoute((config) => {
   config.setRouteTitle('Maintenance')
@@ -79,12 +79,7 @@ export default defineRoute((config) => {
           Status: 'arrived',
           Direction: MAIL_DIRECTIONS.INCOMING,
         })
-        const externalToInternalUser = external.filter(
-          (p) =>
-            p.OffPlatformRecipient !== true &&
-            p.OffPlatformRecipient !== 'true' &&
-            (getUserEmail(p.Recipient) || p.RecipientEmail),
-        )
+        const externalToInternalUser = external.filter(hasChaseableRecipient)
 
         return [...internal, ...externalToInternalUser].filter(isStale)
       },

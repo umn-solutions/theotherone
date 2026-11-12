@@ -26,6 +26,7 @@ import {
 } from '../../../utils/package-table-columns.js'
 import { getHubLocation, isHubLocationSet } from './hubLocation.js'
 import { guardUnsaved } from './unsavedGuard.js'
+import { cleanLine, notifyRemovedChars } from '../../../utils/text-field.js'
 
 /**
  * Creates a mail action route with predefined status transition.
@@ -359,11 +360,12 @@ export async function createMailActionRoute(config, {
       smartCardValue = card
     }
 
-    const comment = (noteField.value || '').trim()
+    const comment = cleanLine(noteField.value)
     if (comment.length > NOTE_MAX_LENGTH) {
       Toast.error(`Note must be ${NOTE_MAX_LENGTH} characters or fewer`)
       return
     }
+    notifyRemovedChars({ Note: noteField.value })
 
     if (updateAllBtn) updateAllBtn.isLoading = true
     const loading = Toast.loading('Updating mail...')
@@ -414,8 +416,9 @@ export async function createMailActionRoute(config, {
           await siteApi.list(ctx.timelineList).createItem(timelineEntry)
 
           // Reflect the new state locally only after the write actually succeeded.
-          pkg.Status = newStatus
-          pkg.CurrentLocation = newLocation
+          // Mirror every written field (incl. SmartCardId), so the detail panel
+          // opened after the update shows the scanned card.
+          Object.assign(pkg, updateFields)
           statusCounts[newStatus] = (statusCounts[newStatus] || 0) + 1
           updatedResults.push({ pkg, newStatus })
           updatedCount++

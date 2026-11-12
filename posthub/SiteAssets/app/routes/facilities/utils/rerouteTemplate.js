@@ -23,6 +23,7 @@ import { getLocationValue, getUserDisplayName, getUserEmail } from '../../../uti
 import { fetchItemsAcrossLists } from '../../../utils/mail-context.js'
 import { getHubLocation, isHubLocationSet } from './hubLocation.js'
 import { guardUnsaved } from './unsavedGuard.js'
+import { cleanLine, notifyRemovedChars } from '../../../utils/text-field.js'
 
 /**
  * Shared Reroute route, parameterized by mail context. Scans a single QR label,
@@ -38,7 +39,9 @@ export async function createRerouteRoute(config, ctx) {
   config.setRouteTitle('Reroute')
 
   const REROUTABLE_STATUSES = ['in transit', 'arrived']
-  const REASON_MAX_LENGTH = 255
+  // Stored as "Rerouted to <office> -- <reason>" in the 255-char Notes field,
+  // so leave room for the prefix.
+  const REASON_MAX_LENGTH = 200
 
   if (!isHubLocationSet()) {
     Toast.warning('Please select your current location first')
@@ -323,7 +326,7 @@ export async function createRerouteRoute(config, ctx) {
       onClickHandler: async () => {
         const destRaw = destinationField.value
         const destination = typeof destRaw === 'string' ? destRaw : (destRaw?.value ?? null)
-        const reason = (reasonField.value || '').trim()
+        const reason = cleanLine(reasonField.value)
 
         if (!destination) { Toast.error('New destination is required'); return }
         if (!reason) { Toast.error('Reason is required to reroute'); return }
@@ -331,6 +334,7 @@ export async function createRerouteRoute(config, ctx) {
           Toast.error(`Reason must be ${REASON_MAX_LENGTH} characters or fewer`)
           return
         }
+        notifyRemovedChars({ Reason: reasonField.value })
         if (destination === getLocationValue(pkg.DestinationLocation)) {
           Toast.warning('New destination is the same as the current one')
         }

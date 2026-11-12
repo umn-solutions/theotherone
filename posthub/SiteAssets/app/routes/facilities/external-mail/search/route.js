@@ -12,6 +12,5 @@ export default defineRoute(async (config) => {
     emptyTitle: 'No results',
     emptyBody: 'No external mail matches your search criteria. Try adjusting the filters.',
     classPrefix: 'external-mail-search',
-    enableReprint: true,
   })
 })

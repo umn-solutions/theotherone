@@ -183,6 +183,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Label column gets extra room and row labels wrap at word boundaries
+   instead of truncating (category names are longer than office codes).
+   Column headers stay single-line (short codes; mid-word wraps read badly). */
+.posthub__flow-matrix__corner { width: 28%; }
+.posthub__flow-matrix th,
+.posthub__flow-matrix td {
+  padding-left: var(--space-xs);
+  padding-right: var(--space-xs);
+}
+.posthub__flow-matrix tbody .posthub__flow-matrix__row-head {
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-overflow: clip;
+}
 .posthub__flow-matrix thead th {
   font-weight: var(--font-weight-semibold);
   color: var(--color-fg-secondary);
@@ -212,10 +226,6 @@
   font-weight: var(--font-weight-semibold);
   background: var(--color-bg-secondary);
   color: var(--color-fg-primary);
-}
-.posthub__flow-matrix__grand {
-  background: var(--color-brand-subtle);
-  color: var(--color-brand-primary--dark);
 }
 
 /* Generic data table (per-building indicators) */

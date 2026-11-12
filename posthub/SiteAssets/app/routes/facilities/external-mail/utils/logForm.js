@@ -30,9 +30,11 @@ import {
   loadPartyOptions,
   loadLocationOptions,
   loadSubcategoryMap,
-  getSubcategoryOptions,
+  createCategoryCombos,
+  comboVal,
   makeSequentialId,
 } from './external-data.js'
+import { cleanText, cleanLine, tooLongMessage, notifyRemovedChars } from '../../../../utils/text-field.js'
 
 /**
  * Shared builder for the untracked external-mail LOG forms (incoming-untracked and
@@ -74,8 +76,6 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
   ])
 
   const navbar = createNavbar()
-
-  const comboVal = (raw) => (typeof raw === 'string' ? raw : (raw?.value ?? ''))
 
   // --- Collection-level (header) fields: the internal side, entered once ---
   const contactField = new FormField({ value: { value: '', label: '' } })
@@ -128,26 +128,7 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
 
   function renderGrid() {
     gridBody.children = rows.map((row) => {
-      // Subcategory options depend on the row's current Category.
-      const subCombo = new ComboBox(row.subcategory, getSubcategoryOptions(subcategoryMap, comboVal(row.category.value)), {
-        allowMultiple: false,
-        allowFiltering: true,
-        allowCreate: false,
-        placeholder: 'Subcategory...',
-      })
-      const categoryCombo = new ComboBox(row.category, categoryOptions, {
-        allowMultiple: false,
-        allowFiltering: true,
-        allowCreate: false,
-        placeholder: 'Category...',
-        // Dependent dropdown: repopulate + reset Subcategory when Category changes.
-        onSelectHandler: (sel) => {
-          subCombo.dataset = getSubcategoryOptions(subcategoryMap, comboVal(sel))
-          row.subcategory.value = ''
-          subCombo.clearSelection()
-          subCombo.render()
-        },
-      })
+      const [categoryCombo, subCombo] = createCategoryCombos(row, categoryOptions, subcategoryMap)
       const quantityInput = new NumberInput(row.quantity, { min: 1, max: 99999, step: 5, placeholder: 'Qty' })
       const descInput = new TextInput(row.description, { placeholder: 'Description' })
       // External party: free-create combo (external orgs are open-ended).
@@ -208,6 +189,27 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
       if (filled.length === 0) { Toast.error('Add at least one item before submitting'); return }
       if (filled.some((r) => !comboVal(r.category.value))) { Toast.error('Every item needs a category'); return }
 
+      // Cleaned per-item fields. Scanned/pasted text can carry control chars
+      // SharePoint rejects (see utils/text-field.js).
+      const items = filled.map((row) => ({
+        Category: comboVal(row.category.value),
+        SubCategory: comboVal(row.subcategory.value),
+        Quantity: String(row.quantity.value ?? 1),
+        Description: cleanText(row.description.value),
+        ExternalParty: cleanLine(comboVal(row.external.value)),
+      }))
+      const lengthError = items
+        .map((item, i) => tooLongMessage({ [`Item ${i + 1}: ${externalRole}`]: item.ExternalParty }))
+        .find(Boolean)
+      if (lengthError) { Toast.error(lengthError); return }
+      notifyRemovedChars({
+        'Collection Notes': notesField.value,
+        ...Object.assign({}, ...filled.map((row, i) => ({
+          [`Item ${i + 1}: Description`]: row.description.value,
+          [`Item ${i + 1}: ${externalRole}`]: comboVal(row.external.value),
+        }))),
+      })
+
       submitBtn.isLoading = true
       pageLoader.toggleLoader()
       const loading = Toast.loading(`Logging ${filled.length} item(s)...`)
@@ -216,20 +218,16 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
       // detail panel can list all items registered together (the "collection").
       const batchId = makeSequentialId(BULK_BATCH_PREFIX)
       // Collection-level notes, same on every row of this batch.
-      const collectionNotes = (notesField.value || '').trim()
+      const collectionNotes = cleanText(notesField.value)
 
       try {
-        for (const row of filled) {
+        for (const item of items) {
           // Title is a generated tracking number (BULK-YYYYMMDD-XXXXX); the item's
           // human-readable content lives in Description.
           await siteApi.list(LIST_EXTERNAL_LOG).createItem({
             Title: makeSequentialId(BULK_TRACKING_PREFIX),
             Direction: direction,
-            Category: comboVal(row.category.value),
-            SubCategory: comboVal(row.subcategory.value),
-            Quantity: String(row.quantity.value ?? 1),
-            Description: (row.description.value || '').trim(),
-            ExternalParty: comboVal(row.external.value),
+            ...item,
             InternalContact: contactIdentity,
             InternalOffice: office,
             RegisteredByEmail: registeredBy,

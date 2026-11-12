@@ -1,4 +1,5 @@
 import { createQrLabelCard } from './qrLabel.js'
+import { printInMode } from '../../../utils/print-mode.js'
 
 /**
  * Populate a hidden print container with the package's QR label and trigger the
@@ -25,17 +26,5 @@ export function printQrLabel(pkg, printContainer) {
  */
 export function printQrLabelA4(pkg, printContainer) {
   printContainer.children = [createQrLabelCard(pkg)]
-  document.body.classList.add('posthub--print-a4')
-  const styleEl = document.createElement('style')
-  styleEl.textContent = '@page { size: A4; margin: 0 }'
-  document.head.appendChild(styleEl)
-  const originalTitle = document.title
-  document.title = pkg.Title
-  try {
-    window.print()
-  } finally {
-    document.title = originalTitle
-    styleEl.remove()
-    document.body.classList.remove('posthub--print-a4')
-  }
+  printInMode({ bodyClass: 'posthub--print-a4', pageCss: '@page { size: A4; margin: 0 }', title: pkg.Title })
 }

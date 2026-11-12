@@ -1,5 +1,6 @@
 import { defineRoute } from '../../../../libs/nofbiz/nofbiz.base.js'
 import { createMailActionRoute } from '../../utils/mailActionTemplate.js'
+import { notifyArrivals } from '../../utils/package-actions.js'
 import { getLocationValue } from '../../../../utils/user-helpers.js'
 import { EXTERNAL_MAIL } from '../../../../utils/mail-context.js'
 import { guardAccess } from '../../../../utils/access.js'
@@ -17,6 +18,7 @@ export default defineRoute(async (config) => {
       getLocationValue(selectedLocation) === getLocationValue(pkg.DestinationLocation)
         ? 'arrived'
         : 'in transit',
+    afterUpdate: notifyArrivals,
     ctx: EXTERNAL_MAIL,
   })
 })

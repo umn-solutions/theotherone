@@ -30,13 +30,6 @@
   flex-shrink: 0;
 }
 
-/* Delete confirm dialog footer */
-.search-package__dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-mNudge);
-}
-
 @media (max-width: 768px) {
   .search-package__body { flex-direction: column; }
   .search-package__results { padding: 0 var(--space-l) var(--space-l) var(--space-l); }

@@ -2,6 +2,7 @@ import { Container, Text, SiteApi } from '../../../libs/nofbiz/nofbiz.base.js'
 import { renderSVG } from '../../../libs/uqr.js'
 import { getUserDisplayName, getLocationValue } from '../../../utils/user-helpers.js'
 import { LIST_EXTERNAL_ITEMS, APP_NAME } from '../../../utils/constants.js'
+import { printInMode } from '../../../utils/print-mode.js'
 
 /**
  * Printable "Mail Order" handover document for an off-platform (subsidiary)
@@ -102,17 +103,9 @@ export async function printSignatureDoc(pkgs, printContainer) {
   printContainer.children = cards
 
   // Document (A4, paginating) print mode -- distinct from the small-label mode.
-  document.body.classList.add('posthub--print-doc')
-  const styleEl = document.createElement('style')
-  styleEl.textContent = '@page { size: A4; margin: 12mm }'
-  document.head.appendChild(styleEl)
-  const originalTitle = document.title
-  document.title = `Mail Order -- ${list.map((p) => p.Title).join(', ')}`
-  try {
-    window.print()
-  } finally {
-    document.title = originalTitle
-    styleEl.remove()
-    document.body.classList.remove('posthub--print-doc')
-  }
+  await printInMode({
+    bodyClass: 'posthub--print-doc',
+    pageCss: '@page { size: A4; margin: 12mm }',
+    title: `Mail Order -- ${list.map((p) => p.Title).join(', ')}`,
+  })
 }

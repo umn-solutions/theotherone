@@ -1,3 +1,4 @@
+import { ComboBox } from '../../../../libs/nofbiz/nofbiz.base.js'
 import {
   LIST_CATEGORIES,
   LIST_SUBCATEGORIES,
@@ -125,4 +126,53 @@ export async function loadSubcategoryMap(siteApi) {
  */
 export function getSubcategoryOptions(map, category) {
   return (map && category && map[category]) || []
+}
+
+/**
+ * Plain string value of a ComboBox FormField (option object or raw string).
+ * @param {unknown} raw
+ * @returns {string}
+ */
+export const comboVal = (raw) => (typeof raw === 'string' ? raw : (raw?.value ?? ''))
+
+/**
+ * Category + dependent Subcategory ComboBoxes for one item row of the register
+ * grids. Changing Category repopulates and resets Subcategory.
+ *
+ * GOTCHA: nofbiz ComboBox.render() fires onSelectHandler on its initial render
+ * when a value is preselected. Grid rows are rebuilt on every Add/Remove Item, so
+ * the reset only runs when the category actually differs from the last one seen --
+ * otherwise every re-render would wipe each row's Subcategory.
+ *
+ * @param {{ category: object, subcategory: object }} row FormFields of the row
+ * @param {object[]} categoryOptions
+ * @param {Record<string, string[]>} subcategoryMap From loadSubcategoryMap()
+ * @returns {[ComboBox, ComboBox]} [categoryCombo, subCombo]
+ */
+export function createCategoryCombos(row, categoryOptions, subcategoryMap) {
+  let lastCategory = comboVal(row.category.value)
+
+  const subCombo = new ComboBox(row.subcategory, getSubcategoryOptions(subcategoryMap, lastCategory), {
+    allowMultiple: false,
+    allowFiltering: true,
+    allowCreate: false,
+    placeholder: 'Subcategory...',
+  })
+  const categoryCombo = new ComboBox(row.category, categoryOptions, {
+    allowMultiple: false,
+    allowFiltering: true,
+    allowCreate: false,
+    placeholder: 'Category...',
+    onSelectHandler: (sel) => {
+      const category = comboVal(sel)
+      if (category === lastCategory) return
+      lastCategory = category
+      subCombo.dataset = getSubcategoryOptions(subcategoryMap, category)
+      row.subcategory.value = ''
+      subCombo.clearSelection()
+      subCombo.render()
+    },
+  })
+
+  return [categoryCombo, subCombo]
 }

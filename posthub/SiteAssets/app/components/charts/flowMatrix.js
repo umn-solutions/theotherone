@@ -1,16 +1,23 @@
 /**
- * Origin -> Destination flow matrix rendered as a heatmap table.
- * Cell intensity scales with count (brand-green tint). Row/column totals
- * mirror the "Total enviados / Total recebidos" summary from the reference.
+ * Cross-tab heatmap table: rows x columns with row/column totals.
+ * Default use is the Origin -> Destination flow between buildings (square,
+ * `buildings` on both axes); pass `rows`/`cols` for a rectangular cross-tab
+ * (e.g. category x office). Cell intensity scales with count (brand-green tint).
+ * The bottom-right grand-total cell is intentionally left blank.
  *
  * Builds a DOM <table> into the given mount element (the same chart-canvas
  * escape hatch the d3 charts use). Fully rebuilds on update().
  *
  * @param {object} args
  * @param {HTMLElement} args.container
- * @param {(b:string)=>string} [args.labelFormatter]  Short header/row label.
+ * @param {(b:string)=>string} [args.labelFormatter]  Short column label (and row label unless rowLabelFormatter given).
+ * @param {(b:string)=>string} [args.rowLabelFormatter]
+ * @param {{ corner?: string, rowTotal?: string, colTotal?: string, cell?: string }} [args.labels]
+ *   Corner caption, row-total header, column-total row caption, tooltip connector.
  */
-export function createFlowMatrix({ container, labelFormatter = (b) => b }) {
+export function createFlowMatrix({ container, labelFormatter = (b) => b, rowLabelFormatter, labels = {} }) {
+  const rowLabel = rowLabelFormatter || labelFormatter
+  const text = { corner: 'From \\ To', rowTotal: 'Sent', colTotal: 'Received', cell: 'to', ...labels }
   function clear() { container.innerHTML = '' }
 
   // rgba tint from the brand green (#00965d) scaled by intensity 0..1
@@ -24,9 +31,9 @@ export function createFlowMatrix({ container, labelFormatter = (b) => b }) {
     }
   }
 
-  function draw(buildings, matrix) {
+  function draw(rows, cols, matrix) {
     clear()
-    if (!buildings || buildings.length === 0) {
+    if (!rows?.length || !cols?.length) {
       const empty = document.createElement('div')
       empty.className = 'posthub__chart-empty'
       empty.textContent = 'No data'
@@ -35,14 +42,10 @@ export function createFlowMatrix({ container, labelFormatter = (b) => b }) {
     }
 
     let max = 0
-    for (let i = 0; i < buildings.length; i++) {
-      for (let j = 0; j < buildings.length; j++) {
-        if (matrix[i][j] > max) max = matrix[i][j]
-      }
-    }
-    const colTotals = buildings.map((_, j) => buildings.reduce((s, __, i) => s + matrix[i][j], 0))
-    const rowTotals = buildings.map((_, i) => matrix[i].reduce((s, v) => s + v, 0))
-    const grand = rowTotals.reduce((s, v) => s + v, 0)
+    for (const row of matrix) for (const v of row) if (v > max) max = v
+    const colTotals = cols.map((_, j) => rows.reduce((s, __, i) => s + matrix[i][j], 0))
+    const rowTotals = rows.map((_, i) => matrix[i].reduce((s, v) => s + v, 0))
+    const square = rows === cols
 
     const table = document.createElement('table')
     table.className = 'posthub__flow-matrix'
@@ -52,9 +55,9 @@ export function createFlowMatrix({ container, labelFormatter = (b) => b }) {
     const hr = document.createElement('tr')
     const corner = document.createElement('th')
     corner.className = 'posthub__flow-matrix__corner'
-    corner.textContent = 'From \\ To'
+    corner.textContent = text.corner
     hr.appendChild(corner)
-    buildings.forEach(b => {
+    cols.forEach(b => {
       const th = document.createElement('th')
       th.textContent = labelFormatter(b)
       th.title = b
@@ -62,29 +65,29 @@ export function createFlowMatrix({ container, labelFormatter = (b) => b }) {
     })
     const thTotal = document.createElement('th')
     thTotal.className = 'posthub__flow-matrix__total-head'
-    thTotal.textContent = 'Sent'
+    thTotal.textContent = text.rowTotal
     hr.appendChild(thTotal)
     thead.appendChild(hr)
     table.appendChild(thead)
 
     // Body
     const tbody = document.createElement('tbody')
-    buildings.forEach((origin, i) => {
+    rows.forEach((origin, i) => {
       const tr = document.createElement('tr')
       const rh = document.createElement('th')
       rh.className = 'posthub__flow-matrix__row-head'
-      rh.textContent = labelFormatter(origin)
+      rh.textContent = rowLabel(origin)
       rh.title = origin
       tr.appendChild(rh)
-      buildings.forEach((dest, j) => {
+      cols.forEach((dest, j) => {
         const td = document.createElement('td')
         const v = matrix[i][j]
         const { bg, fg } = cellStyle(v, max)
         td.style.background = bg
         td.style.color = fg
-        if (i === j) td.classList.add('posthub__flow-matrix__diag')
+        if (square && i === j) td.classList.add('posthub__flow-matrix__diag')
         td.textContent = v ? String(v) : '-'
-        td.title = `${origin} to ${dest}: ${v}`
+        td.title = `${origin} ${text.cell} ${dest}: ${v}`
         tr.appendChild(td)
       })
       const rt = document.createElement('td')
@@ -99,7 +102,7 @@ export function createFlowMatrix({ container, labelFormatter = (b) => b }) {
     ftr.className = 'posthub__flow-matrix__total-row'
     const fh = document.createElement('th')
     fh.className = 'posthub__flow-matrix__row-head'
-    fh.textContent = 'Received'
+    fh.textContent = text.colTotal
     ftr.appendChild(fh)
     colTotals.forEach(v => {
       const td = document.createElement('td')
@@ -107,10 +110,10 @@ export function createFlowMatrix({ container, labelFormatter = (b) => b }) {
       td.textContent = String(v)
       ftr.appendChild(td)
     })
-    const grandCell = document.createElement('td')
-    grandCell.className = 'posthub__flow-matrix__total-cell posthub__flow-matrix__grand'
-    grandCell.textContent = String(grand)
-    ftr.appendChild(grandCell)
+    // Grand-total corner intentionally blank (keeps the grid aligned).
+    const cornerCell = document.createElement('td')
+    cornerCell.className = 'posthub__flow-matrix__total-cell'
+    ftr.appendChild(cornerCell)
     tbody.appendChild(ftr)
 
     table.appendChild(tbody)
@@ -119,7 +122,7 @@ export function createFlowMatrix({ container, labelFormatter = (b) => b }) {
 
   return {
     render() { /* static: nothing until data arrives */ },
-    update({ buildings, matrix }) { draw(buildings, matrix) },
+    update({ buildings, rows = buildings, cols = buildings, matrix }) { draw(rows, cols, matrix) },
     destroy() { clear() },
   }
 }

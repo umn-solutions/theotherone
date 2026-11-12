@@ -417,11 +417,8 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 		const extraFields = [];
 		if (showSmartCardId && pkg.SmartCardId) {
 			extraFields.push(createField("Smart Card ID", pkg.SmartCardId));
-		} else if (
-			!showSmartCardId &&
-			pkg.Status === "delivered" &&
-			pkg.SmartCardId
-		) {
+		}
+		if (pkg.Status === "delivered" && pkg.SmartCardId) {
 			extraFields.push(
 				new Container(
 					[

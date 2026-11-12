@@ -33,10 +33,12 @@ import {
   loadLocationOptions,
   loadPartyOptions,
   loadSubcategoryMap,
-  getSubcategoryOptions,
+  createCategoryCombos,
+  comboVal,
   makeSequentialId,
 } from './external-data.js'
 import { createQrLabelCard } from '../../utils/qrLabel.js'
+import { cleanText, cleanLine, tooLongMessage, joinWithinLimit, notifyRemovedChars } from '../../../../utils/text-field.js'
 import { printQrLabel, printQrLabelA4 } from '../../utils/qrLabelPrint.js'
 import { printQrLabelPdf } from '../../utils/qrLabelPdf.js'
 
@@ -74,8 +76,6 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
   ])
 
   const navbar = createNavbar()
-
-  const comboVal = (raw) => (typeof raw === 'string' ? raw : (raw?.value ?? ''))
 
   // --- Collection-level (header) fields ---
   // Recipient: normally a PeoplePicker; when the "off-platform" toggle is on it
@@ -160,25 +160,7 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
 
   function renderGrid() {
     gridBody.children = rows.map((row) => {
-      const subCombo = new ComboBox(row.subcategory, getSubcategoryOptions(subcategoryMap, comboVal(row.category.value)), {
-        allowMultiple: false,
-        allowFiltering: true,
-        allowCreate: false,
-        placeholder: 'Subcategory...',
-      })
-      const categoryCombo = new ComboBox(row.category, categoryOptions, {
-        allowMultiple: false,
-        allowFiltering: true,
-        allowCreate: false,
-        placeholder: 'Category...',
-        // Dependent dropdown: repopulate + reset Subcategory when Category changes.
-        onSelectHandler: (sel) => {
-          subCombo.dataset = getSubcategoryOptions(subcategoryMap, comboVal(sel))
-          row.subcategory.value = ''
-          subCombo.clearSelection()
-          subCombo.render()
-        },
-      })
+      const [categoryCombo, subCombo] = createCategoryCombos(row, categoryOptions, subcategoryMap)
       const itemNumberInput = new NumberInput(row.itemNumber, { min: 0, step: 1, placeholder: 'Item #' })
       const descInput = new TextInput(row.description, { placeholder: 'Description' })
       const fromCombo = new ComboBox(row.from, partyOptions, {
@@ -282,9 +264,12 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
 
       // Recipient: free text when off-platform, otherwise a resolved internal identity.
       let recipientIdentity = null
-      const recipientText = (recipientTextField.value || '').trim()
+      const recipientText = cleanLine(recipientTextField.value)
       if (offPlatform) {
         if (!recipientText) { Toast.error('Recipient name is required'); return }
+        // Stored inside the Recipient identity JSON, so leave room for its wrapper.
+        const nameError = tooLongMessage({ 'Recipient name': recipientText }, 200)
+        if (nameError) { Toast.error(nameError); return }
       } else {
         const rawRecipient = recipientField.value?.value ?? null
         recipientIdentity = rawRecipient ? UserIdentity.fromField(rawRecipient) : null
@@ -293,6 +278,31 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
       if (!destination) { Toast.error('Destination office is required'); return }
       if (filled.length === 0) { Toast.error('Add at least one item before registering'); return }
       if (filled.some((r) => !comboVal(r.category.value))) { Toast.error('Every item needs a category'); return }
+
+      // Cleaned line-item payloads (Title added at write time). Scanned/pasted text
+      // can carry control chars SharePoint rejects (see utils/text-field.js).
+      const items = filled.map((row) => ({
+        ItemNumber: row.itemNumber.value === '' || row.itemNumber.value == null ? '' : String(row.itemNumber.value),
+        Category: comboVal(row.category.value),
+        SubCategory: comboVal(row.subcategory.value),
+        Description: cleanText(row.description.value),
+        FromParty: cleanLine(comboVal(row.from.value)),
+        ExternalTrackingId: cleanLine(row.externalId.value),
+      }))
+      const lengthError = items.map((item, i) => tooLongMessage({
+        [`Item ${i + 1}: ${partyLabel}`]: item.FromParty,
+        [`Item ${i + 1}: External Tracking ID`]: item.ExternalTrackingId,
+      })).find(Boolean)
+      if (lengthError) { Toast.error(lengthError); return }
+      notifyRemovedChars({
+        ...(offPlatform ? { 'Recipient name': recipientTextField.value } : {}),
+        'Collection Notes': notesField.value,
+        ...Object.assign({}, ...filled.map((row, i) => ({
+          [`Item ${i + 1}: Description`]: row.description.value,
+          [`Item ${i + 1}: ${partyLabel}`]: comboVal(row.from.value),
+          [`Item ${i + 1}: External Tracking ID`]: row.externalId.value,
+        }))),
+      })
 
       submitBtn.isLoading = true
       contentLoader.toggleLoader()
@@ -303,15 +313,17 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
         const trackingNumber = makeSequentialId(EXTERNAL_TRACKING_PREFIX, now)
 
         // Denormalized summaries for the search list view (header carries no per-item data).
-        const distinctCategories = [...new Set(filled.map((r) => comboVal(r.category.value)).filter(Boolean))]
-        const distinctFroms = [...new Set(filled.map((r) => comboVal(r.from.value)).filter(Boolean))]
+        const distinctCategories = [...new Set(items.map((item) => item.Category).filter(Boolean))]
+        const distinctFroms = [...new Set(items.map((item) => item.FromParty).filter(Boolean))]
 
         const headerPayload = {
           Title: trackingNumber,
           Direction: direction,
           // External senders are organizations, not internal users -- store a
           // display-only identity so name helpers render it on the label/search.
-          Sender: { email: '', displayName: distinctFroms.join(', ') || 'External' },
+          // Sender is a single-line field that grows with every distinct item
+          // source, so cap the summary (full list lives on the items).
+          Sender: { email: '', displayName: joinWithinLimit(distinctFroms, 200) || 'External' },
           OffPlatformRecipient: offPlatform ? 'true' : 'false',
           Recipient: offPlatform ? { email: '', displayName: recipientText } : recipientIdentity,
           SenderEmail: '',
@@ -321,7 +333,7 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
           Status: 'in transit',
           CurrentLocation: '',
           DestinationLocation: destination,
-          PackageDetails: (notesField.value || '').trim(),
+          PackageDetails: cleanText(notesField.value),
           Categories: distinctCategories,
           ItemCount: String(filled.length),
           SubmissionDate: now.toISOString(),
@@ -331,16 +343,8 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
         await siteApi.list(LIST_EXTERNAL_PACKAGES).createItem(headerPayload)
 
         // Line items -- Title is the FK back to the header tracking number.
-        for (const row of filled) {
-          await siteApi.list(LIST_EXTERNAL_ITEMS).createItem({
-            Title: trackingNumber,
-            ItemNumber: row.itemNumber.value === '' || row.itemNumber.value == null ? '' : String(row.itemNumber.value),
-            Category: comboVal(row.category.value),
-            SubCategory: comboVal(row.subcategory.value),
-            Description: (row.description.value || '').trim(),
-            FromParty: comboVal(row.from.value),
-            ExternalTrackingId: (row.externalId.value || '').trim(),
-          })
+        for (const item of items) {
+          await siteApi.list(LIST_EXTERNAL_ITEMS).createItem({ Title: trackingNumber, ...item })
         }
 
         await siteApi.list(LIST_TIMELINE_ENTRIES).createItem({

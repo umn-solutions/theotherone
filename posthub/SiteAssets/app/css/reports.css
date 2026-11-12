@@ -1,0 +1,266 @@
+/* REPORTS - shared detail-dashboard layout (internal-details + external-details) */
+
+.reports__body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.reports__content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-l) var(--space-xxl);
+  gap: var(--space-xxl);
+}
+
+/* Direct children must not shrink, otherwise flex-column squishes chart cards
+   instead of producing a scrollbar -- lower sections become unreachable. */
+.reports__content > * {
+  flex-shrink: 0;
+}
+
+.reports__kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-l);
+  padding-bottom: var(--space-l);
+  border-bottom: var(--stroke-thin) solid var(--color-stroke-subtle);
+}
+
+.reports__overview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-xxl);
+}
+
+.reports__overview .posthub__chart-card {
+  height: 20rem;
+}
+
+.reports__detail-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xxl);
+}
+
+.reports__detail-2col .posthub__chart-card {
+  height: 22rem;
+}
+
+/* Summary: indicator table (wide) + status donut (narrow) */
+.reports__summary {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-xxl);
+}
+
+.reports__summary .posthub__chart-card {
+  height: 22rem;
+}
+
+/* Matrix + indicator table can exceed the card; let their canvas scroll
+   rather than clip. */
+.reports__card--scroll .posthub__chart-card__canvas {
+  overflow: auto;
+}
+
+@media (max-width: 1280px) {
+  .reports__kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .reports__overview { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 1024px) {
+  .reports__overview { grid-template-columns: 1fr; }
+  .reports__detail-2col { grid-template-columns: 1fr; }
+  .reports__summary { grid-template-columns: 1fr; }
+  .reports__kpi-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .reports__body { flex-direction: column; }
+  .reports__content { padding: var(--space-l); gap: var(--space-l); }
+  .reports__kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Filter sidebar (detail dashboards): narrow single column, full-width
+   controls, sections separated by a divider. Overrides the generic
+   two-column posthub__filter-grid sidebar. */
+.reports__filters.posthub__filter-sidebar {
+  width: 18rem;
+  min-width: 18rem;
+  justify-content: flex-start;
+  gap: var(--space-xl);
+  padding: var(--space-xl) var(--space-l);
+}
+
+.reports__filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-m);
+}
+
+.reports__filter-section + .reports__filter-section {
+  padding-top: var(--space-xl);
+  border-top: var(--stroke-thin) solid var(--color-stroke-subtle);
+}
+
+.reports__filters .posthub__filter-group {
+  gap: var(--space-xs);
+}
+
+.reports__filters .posthub__filter-group > .form-control {
+  width: 100%;
+}
+
+.reports__filter-hint {
+  margin: 0;
+  font-size: var(--font-size-100);
+  color: var(--color-fg-tertiary);
+}
+
+.reports__filter-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+}
+
+.reports__filter-actions > .nofbiz__button {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .reports__filters.posthub__filter-sidebar {
+    width: auto;
+    min-width: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* SUMMARY REPORT print mode (body.posthub--print-report)              */
+/* The body class is set just BEFORE window.print() and applies on     */
+/* screen too: the dashboard is re-laid out at A4-landscape width so   */
+/* the d3 charts (ResizeObserver) redraw at print size first. Grid     */
+/* columns are forced here so the print media queries above cannot     */
+/* reflow the cards after the charts were drawn (would distort SVGs).  */
+/* ------------------------------------------------------------------ */
+
+.reports__print-header {
+  display: none;
+}
+
+body.posthub--print-report .posthub__filter-sidebar,
+body.posthub--print-report .posthub__page-header,
+body.posthub--print-report .navbar {
+  display: none !important;
+}
+
+body.posthub--print-report .reports__content {
+  /* A4 landscape (297mm) minus 2 x 10mm page margin */
+  flex: none;
+  width: 277mm;
+  max-width: 277mm;
+  padding: 0;
+  gap: 5mm;
+}
+
+body.posthub--print-report .reports__print-header {
+  display: block;
+  padding-bottom: 3mm;
+  border-bottom: 1pt solid var(--color-fg-primary);
+}
+
+.reports__print-brand {
+  margin: 0;
+  font-size: var(--font-size-200);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-brand-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.reports__print-title {
+  margin: 1mm 0;
+  font-size: var(--font-size-600);
+  color: var(--color-fg-primary);
+}
+
+.reports__print-meta {
+  margin: 0;
+  font-size: var(--font-size-200);
+  color: var(--color-fg-secondary);
+}
+
+body.posthub--print-report .reports__kpi-grid { grid-template-columns: repeat(5, 1fr) !important; gap: 4mm; }
+/* Matrix card gets extra width so office-code columns fit on paper. */
+body.posthub--print-report .reports__overview { grid-template-columns: 1.2fr 0.8fr 1.4fr !important; gap: 5mm; }
+body.posthub--print-report .posthub__flow-matrix { table-layout: auto; }
+body.posthub--print-report .posthub__flow-matrix th,
+body.posthub--print-report .posthub__flow-matrix td { text-overflow: clip; }
+body.posthub--print-report .reports__detail-2col { grid-template-columns: 1fr 1fr !important; gap: 5mm; }
+body.posthub--print-report .reports__summary { grid-template-columns: 2fr 1fr !important; gap: 5mm; }
+
+body.posthub--print-report .posthub__chart-card {
+  padding: 4mm 5mm;
+  box-shadow: none;
+}
+
+/* Tables (flow matrix, indicators) grow to fit instead of scrolling. */
+body.posthub--print-report .reports__card--scroll { height: auto !important; min-height: 0; }
+body.posthub--print-report .reports__card--scroll .posthub__chart-card__canvas { overflow: visible; }
+
+@media print {
+  /* Keep heatmap tints, status colors and chart fills. */
+  body.posthub--print-report {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background: #fff;
+  }
+
+  /* Unlock every clipping ancestor (scroll-locked route: overflow hidden +
+     fixed height) or the report is cut off after the first page. */
+  html,
+  body.posthub--print-report,
+  body.posthub--print-report #root,
+  body.posthub--print-report .nofbiz__route,
+  body.posthub--print-report .posthub__page-content,
+  body.posthub--print-report .reports__body,
+  body.posthub--print-report .reports__content {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* mail-workflow.css hides all page content except the label print container
+     on ANY print; re-show the report body in this mode. */
+  body.posthub--print-report .posthub__page-content > .reports__body {
+    display: block !important;
+  }
+  body.posthub--print-report .reports__content { display: flex !important; }
+
+  body.posthub--print-report .nofbiz__loader,
+  body.posthub--print-report .toastify {
+    display: none !important;
+  }
+
+  body.posthub--print-report .reports__kpi-grid,
+  body.posthub--print-report .reports__overview,
+  body.posthub--print-report .reports__detail-2col,
+  body.posthub--print-report .reports__summary,
+  body.posthub--print-report .posthub__chart-card {
+    break-inside: avoid;
+  }
+
+  /* Page 1: header + KPIs + overview; page 2: trends + summary. */
+  body.posthub--print-report .reports__detail-2col { break-before: page; }
+}
+
+/* Card heights sized so each A4-landscape page fits its rows. */
+body.posthub--print-report .reports__overview .posthub__chart-card,
+body.posthub--print-report .reports__detail-2col .posthub__chart-card,
+body.posthub--print-report .reports__summary .posthub__chart-card {
+  height: 18rem;
+}

@@ -8,6 +8,8 @@ import { tooltip } from './tooltip.js'
  * @param {HTMLElement} args.container
  * @param {object} args.data
  * @param {Array<{name:string,color:string,points:Array<{x:Date|string,y:number,label?:string}>}>} args.data.series
+ * @param {object} [args.options]
+ * @param {boolean} [args.options.ticksAtPoints]  Place x ticks on the data points (e.g. week starts).
  */
 export function createLineChart({ container, data, options = {} }) {
   let _data = data
@@ -75,8 +77,10 @@ export function createLineChart({ container, data, options = {} }) {
       .attr('text-anchor', 'end').attr('dominant-baseline', 'middle')
       .text(d => d)
 
-    // X axis ticks: about 6 evenly spaced
-    const xTicks = xScale.ticks(Math.min(6, allPoints.length))
+    // X axis ticks: one per data point (bucketed data, e.g. weeks) or ~6 evenly spaced
+    const xTicks = _opts.ticksAtPoints
+      ? [...new Map(allPoints.map(p => [p._x.getTime(), p._x])).values()]
+      : xScale.ticks(Math.min(6, allPoints.length))
     g.selectAll('text.x-tick')
       .data(xTicks)
       .enter()
@@ -84,7 +88,11 @@ export function createLineChart({ container, data, options = {} }) {
       .attr('class', 'x-tick')
       .attr('x', d => xScale(d))
       .attr('y', innerH + 14)
-      .attr('text-anchor', 'middle')
+      // Edge ticks anchor inward so labels at the plot bounds are not clipped.
+      .attr('text-anchor', d => {
+        const x = xScale(d)
+        return x <= 0 ? 'start' : x >= innerW ? 'end' : 'middle'
+      })
       .text(d => d3.timeFormat('%d %b')(d))
 
     // Series paths

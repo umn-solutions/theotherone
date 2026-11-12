@@ -887,3 +887,10 @@
 
 /* Signature-document (Mail Order handover) styles live in css/mail-workflow.css
    under the `body.posthub--print-doc` print mode -- the doc is print-only. */
+
+/* Confirm-dialog footer (e.g. shared search-dashboard Delete confirmation) */
+.posthub__dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-mNudge);
+}
