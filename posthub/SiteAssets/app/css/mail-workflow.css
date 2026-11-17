@@ -5,7 +5,20 @@
 
 .mail-labels__sender-field { width: 100%; }
 
-/* Tracking-number search (external reprint): stacked input + search button */
+/* Reprint search card: "Search by" toggle + the active search control */
+.mail-labels__mode-toggle { justify-content: center; }
+.mail-labels__search-slot { width: 100%; }
+
+/* Results bar above the table: searched query + New Search */
+.mail-labels__results-bar { justify-content: space-between; }
+.mail-labels__results-summary {
+  margin: 0;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg-primary);
+  overflow-wrap: anywhere;
+}
+
+/* Tracking-ID search (reprint): stacked input + search button */
 .mail-labels__tracking-search {
   display: flex;
   flex-direction: column;
@@ -48,53 +61,103 @@
 /* Hidden on screen, visible only in print */
 .mail-labels__print-container { display: none; }
 
-/* QR Label card */
+/* QR Label card -- A6 landscape (148 x 105 mm): QR on the left, routing data on
+   the right. Sized in physical units so the on-screen preview (registration
+   success card) matches the printout. Black on white: it is a paper label. */
 .qr-label__card {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: var(--space-m);
-  background: var(--color-bg-base);
+  gap: 8mm;
+  box-sizing: border-box;
+  width: 148mm;
+  max-width: 100%;
+  aspect-ratio: 148 / 105;
+  padding: 6mm;
+  background: #fff;
+  color: #000;
   border: 2px solid var(--color-fg-primary);
   border-radius: var(--radius-lg);
-  width: 50.8mm;
 }
 
-.qr-label__qr-target {
+/* ~50 mm square on the 136 mm content box (37%). Sized for the payload, not
+   the paper: a typical label QR is ~101 modules -> ~0.5 mm/module, worst case
+   (all values at the 150-char cap) ~145 modules -> ~0.35 mm, both well above
+   the ~0.3 mm a handheld 2D imager needs. Don't go much below 45 mm. */
+.qr-label__qr {
+  flex: 0 0 37%;
+  aspect-ratio: 1;
+}
+
+.qr-label__qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.qr-label__info {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
+  gap: 4.5mm;
 }
 
-.qr-label__qr-target svg {
-  width: 40mm;
-  height: 40mm;
+.qr-label__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5mm;
+  min-width: 0;
 }
 
-.qr-label__detail {
-  font-size: 0.6875rem;
-  color: var(--color-fg-secondary);
-  margin: 0;
-}
-
-.qr-label__route {
-  font-size: 0.6875rem;
+.qr-label__caption {
+  font-size: 8pt;
   font-weight: var(--font-weight-semibold);
-  color: var(--color-fg-primary);
-  margin: 0;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.qr-label__label-id {
-  font-size: 0.5rem;
-  font-family: monospace;
-  color: var(--color-fg-disabled);
-  margin: 2px 0 0;
-  letter-spacing: 0.5px;
+/* Values wrap; the size tier (qr-label__value--size-N, chosen by text length in
+   qrLabel.js) steps the font down and allows more lines for long entity and
+   office names, so they print in full. The line clamp is only a last-resort
+   guard. Height budget for the text column (~58 mm for From + To + Destination
+   after captions, gaps and Tracking ID): the tallest tier of each field
+   combined is ~56 mm, so nothing can push the Tracking ID off the label. */
+.qr-label__value {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  margin: 0;
+  line-height: 1.25;
+}
+
+/* From / To: <=50 / <=80 / <=130 / longer chars (field cap is 200) */
+.qr-label__value--size-0 { font-size: 13pt; -webkit-line-clamp: 3; }
+.qr-label__value--size-1 { font-size: 11pt; -webkit-line-clamp: 3; }
+.qr-label__value--size-2 { font-size: 9.5pt; line-height: 1.2; -webkit-line-clamp: 4; }
+.qr-label__value--size-3 { font-size: 7.5pt; line-height: 1.2; -webkit-line-clamp: 6; }
+
+/* Destination Office (emphasized): <=16 / <=32 / <=60 / longer chars */
+.qr-label__field--destination .qr-label__value {
+  font-weight: 700;
+  line-height: 1.15;
+}
+.qr-label__field--destination .qr-label__value--size-0 { font-size: 22pt; -webkit-line-clamp: 2; }
+.qr-label__field--destination .qr-label__value--size-1 { font-size: 17pt; -webkit-line-clamp: 2; }
+.qr-label__field--destination .qr-label__value--size-2 { font-size: 13pt; -webkit-line-clamp: 3; }
+.qr-label__field--destination .qr-label__value--size-3 { font-size: 10pt; -webkit-line-clamp: 5; }
+
+.qr-label__field--tracking .qr-label__value {
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 12pt;
+  letter-spacing: 0.02em;
+  -webkit-line-clamp: 1;
 }
 
 @media print {
-  @page { size: 50.8mm 76.2mm; margin: 0; }
+  /* No global @page: each print flow injects its own via printInMode (labels:
+     A6 landscape in qrLabelPrint.js; Mail Order doc and reports: A4). */
   body { margin: 0; padding: 0; }
 
   /* Hide everything except the print container. The page-content rule hides all
@@ -113,55 +176,50 @@
 
   .posthub__page-content > *:not(.mail-labels__print-container) { display: none !important; }
 
+  /* Label print: keep ONLY the print container, its contents and its ancestor
+     chain; hide everything else. The list above misses overlays mounted outside
+     page-content -- e.g. a closed nofbiz__dialog is position:absolute against
+     the root, escapes the route's overflow clip, and pushes the document onto a
+     2nd page (the fixed label then repeats on it: two identical sheets). */
+  body.posthub--print-label *:not(:has(.mail-labels__print-container)):not(.mail-labels__print-container):not(.mail-labels__print-container *) {
+    display: none !important;
+  }
+
+  /* Chromium lays out a fraction of a px narrower than the quantized page box,
+     so the app's tinted page background shows as a sliver at the right edge. */
+  html:has(> body.posthub--print-label),
+  body.posthub--print-label { background: #fff !important; }
+
   /* Kill the side-panel backdrop dim (#root::before) so nothing greys the page
      if the user enables "Background graphics" when printing. */
   .nofbiz__sidepanel--backdrop::before { display: none !important; }
 
   .mail-labels__print-container {
     display: flex !important;
-    /* Pin to the page origin so overflow:hidden ancestors (the scroll-locked
+    /* Pin to the page area so overflow:hidden ancestors (the scroll-locked
        route / page-content, sized to the screen viewport) cannot clip the label
-       in real print media. No transformed ancestors, so fixed == page origin. */
+       in real print media. No transformed ancestors, so fixed == page area;
+       inset:0 makes the label fill whatever page area the print dialog's
+       margin setting leaves, instead of a fixed size that could overflow it. */
     position: fixed;
-    top: 0;
-    left: 0;
-    align-items: center;
-    justify-content: center;
-    width: 50.8mm;
-    min-height: 76.2mm;
+    inset: 0;
     margin: 0;
     padding: 0;
     background: #fff;
     z-index: 2147483647;
   }
 
+  /* Page margin is 0 (no browser header/footer); the 6mm card padding is the
+     printer-safe zone, clear of the unprintable edge most printers have. */
   .qr-label__card {
-    width: 50.8mm; height: 76.2mm; padding: 2.5mm;
-    border: none; border-radius: 0;
-    gap: 1px;
-    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    aspect-ratio: auto;
+    border: none;
+    border-radius: 0;
+    overflow: hidden;
   }
-  .qr-label__qr-target svg { width: 40mm !important; height: 40mm !important; }
-  .qr-label__detail { font-size: 7pt; }
-  .qr-label__route { font-size: 7pt; }
-  .qr-label__label-id { font-size: 6pt; color: #999; }
-}
-
-@media print {
-  body.posthub--print-a4 .mail-labels__print-container {
-    width: 210mm;
-    min-height: 297mm;
-  }
-  body.posthub--print-a4 .qr-label__card {
-    width: 210mm; height: 297mm; padding: 10mm;
-    gap: 4mm;
-  }
-  body.posthub--print-a4 .qr-label__qr-target svg {
-    width: 165mm !important; height: 165mm !important;
-  }
-  body.posthub--print-a4 .qr-label__detail,
-  body.posthub--print-a4 .qr-label__route { font-size: 28pt; }
-  body.posthub--print-a4 .qr-label__label-id { font-size: 24pt; }
 }
 
 /* Mail Order signature document -- A4, paginating. Unlike the small-label mode
@@ -257,7 +315,6 @@
 @media (max-width: 768px) {
   .mail-labels__table--print,
   .mail-labels__table--reprint { --table-columns: 1fr; }
-  .qr-label__card { width: 100%; max-width: 50.8mm; }
 }
 
 /* Hub location selector modal (shared by internal + external mail hubs) */

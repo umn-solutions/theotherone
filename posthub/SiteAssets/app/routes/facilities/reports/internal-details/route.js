@@ -8,9 +8,10 @@ import { createHorizontalBarChart } from '../../../../components/charts/horizont
 import { createFlowMatrix } from '../../../../components/charts/flowMatrix.js'
 import { createLineChart } from '../../../../components/charts/lineChart.js'
 
-import { STATUS_LABELS } from '../../../../utils/constants.js'
+import { STATUS_LABELS, TRACKING_NUMBER_LABEL } from '../../../../utils/constants.js'
 import { getLocationValue, getUserDisplayName } from '../../../../utils/user-helpers.js'
 import { guardAccess } from '../../../../utils/access.js'
+import { TOOLTIPS } from '../../../../utils/copy.js'
 
 import { createReportDashboard } from '../utils/reportDashboard.js'
 import { fetchInternalMonth, monthStart } from '../utils/report-data.js'
@@ -114,7 +115,7 @@ export default defineRoute((config) => {
     charts.avgTime.update(m.avgRows)
     charts.indicators.update({
       columns: [
-        { key: 'building', label: 'Building', align: 'left', isHeader: true },
+        { key: 'building', label: 'Office', align: 'left', isHeader: true },
         { key: 'sent', label: 'Sent', align: 'right' },
         { key: 'received', label: 'Received', align: 'right' },
         { key: 'delivered', label: 'Delivered', align: 'right' },
@@ -127,11 +128,11 @@ export default defineRoute((config) => {
     charts.statusDonut.update(m.statuses, { centerLabel: fmtPctValue(k.pctDelivered), centerSublabel: 'delivered' })
 
     return [
-      createKpiCard({ label: 'Sent', value: k.sent, icon: getIcon('send-plane-line'), delta: deltaRel(k.sent, p.sent) }),
-      createKpiCard({ label: 'Received', value: k.received, icon: getIcon('inbox-line'), delta: deltaRel(k.received, p.received) }),
-      createKpiCard({ label: 'Delivered', value: k.delivered, icon: getIcon('checkbox-circle-line'), delta: deltaRel(k.delivered, p.delivered) }),
-      createKpiCard({ label: '% Delivered', value: fmtPctValue(k.pctDelivered), icon: getIcon('check-double-line'), modifier: 'delivered', delta: deltaPp(k.pctDelivered, p.pctDelivered) }),
-      createKpiCard({ label: 'Avg Delivery Time', value: formatDuration(k.avgMs), icon: getIcon('route-line'), sublabel: 'in transit to delivered', delta: deltaTime(k.avgMs, p.avgMs) }),
+      createKpiCard({ label: 'Sent', value: k.sent, icon: getIcon('send-plane-line'), delta: deltaRel(k.sent, p.sent), tooltip: TOOLTIPS.reports.sentInternal }),
+      createKpiCard({ label: 'Received', value: k.received, icon: getIcon('inbox-line'), delta: deltaRel(k.received, p.received), tooltip: TOOLTIPS.reports.received }),
+      createKpiCard({ label: 'Delivered', value: k.delivered, icon: getIcon('checkbox-circle-line'), delta: deltaRel(k.delivered, p.delivered), tooltip: TOOLTIPS.reports.deliveredInternal }),
+      createKpiCard({ label: '% Delivered', value: fmtPctValue(k.pctDelivered), icon: getIcon('check-double-line'), modifier: 'delivered', delta: deltaPp(k.pctDelivered, p.pctDelivered), tooltip: TOOLTIPS.reports.deliveredPctInternal }),
+      createKpiCard({ label: 'Avg Delivery Time', value: formatDuration(k.avgMs), icon: getIcon('route-line'), sublabel: 'in transit to delivered', delta: deltaTime(k.avgMs, p.avgMs), tooltip: TOOLTIPS.reports.avgDeliveryTime }),
     ]
   }
 
@@ -150,9 +151,9 @@ export default defineRoute((config) => {
         ]),
       },
       {
-        name: 'By building',
+        name: 'By office',
         rows: [...m.indicatorRows, m.indicatorTotals].map(r => ({
-          Building: r.building,
+          Office: r.building,
           Sent: r.sent,
           Received: r.received,
           Delivered: r.delivered,
@@ -161,15 +162,15 @@ export default defineRoute((config) => {
         })),
       },
       {
-        name: 'Flow between buildings',
+        name: 'Flow between offices',
         rows: matrixSheetRows(m.buildings, m.buildings, m.flow, { corner: 'From \\ To', rowTotal: 'Sent', colTotal: 'Received', rowLabel: shortLabel }),
       },
       { name: 'Weekly volume', rows: weeklySheetRows(m.weekly) },
-      { name: 'Status', rows: statusSheetRows(m.statuses, 'Packages') },
+      { name: 'Status', rows: statusSheetRows(m.statuses, 'Items') },
       {
-        name: 'Packages',
+        name: 'Items',
         rows: m.cur.packages.map(pkg => ({
-          'Tracking ID': pkg.Title,
+          [TRACKING_NUMBER_LABEL]: pkg.Title,
           Status: STATUS_LABELS[pkg.Status] || pkg.Status,
           Origin: getOrigin(pkg, m.originIndex),
           Destination: destinationOf(pkg),
@@ -186,30 +187,30 @@ export default defineRoute((config) => {
     siteApi,
     reportKey: 'internal',
     title: 'Internal Mail Report',
-    subtitle: 'Internal mail volumes and flow between buildings',
-    filterLabel: 'Building',
+    subtitle: 'internal mail volumes and flow between offices.',
+    filterLabel: 'Office',
     filterHint: 'Origin or destination',
     rows: [
       {
         class: 'reports__overview',
         cards: [
-          { key: 'volumeByBuilding', title: 'Volume by building', subtitle: 'Sent and received per building' },
-          { key: 'volumeDonut', title: 'Volume distribution', subtitle: 'Share of volume by origin' },
-          { key: 'flowMatrix', title: 'Mail flow between buildings', subtitle: 'Origin (rows) to destination (columns)', scroll: true },
+          { key: 'volumeByBuilding', title: 'Volume by Office', subtitle: 'Sent and received per office' },
+          { key: 'volumeDonut', title: 'Share by Origin Office', subtitle: 'Share of volume by origin' },
+          { key: 'flowMatrix', title: 'Mail Flow Between Offices', subtitle: 'Origin (rows) to destination (columns)', scroll: true, tooltip: TOOLTIPS.reports.flowMatrix },
         ],
       },
       {
         class: 'reports__detail-2col',
         cards: [
-          { key: 'weekly', title: 'Weekly volume by building', subtitle: 'Mail created per week of the month, by origin' },
-          { key: 'avgTime', title: 'Avg delivery time by building', subtitle: 'In transit to delivered, per destination' },
+          { key: 'weekly', title: 'Weekly Volume by Office', subtitle: 'Mail created per week of the month, by origin' },
+          { key: 'avgTime', title: 'Avg Delivery Time by Office', subtitle: 'In transit to delivered, per destination' },
         ],
       },
       {
         class: 'reports__summary',
         cards: [
-          { key: 'indicators', title: 'Indicators by building', subtitle: 'Volume and delivery summary', scroll: true },
-          { key: 'statusDonut', title: 'Status of flow', subtitle: 'Distribution across statuses' },
+          { key: 'indicators', title: 'Indicators by Office', subtitle: 'Volume and delivery summary', scroll: true },
+          { key: 'statusDonut', title: 'Status Breakdown', subtitle: 'Distribution across statuses' },
         ],
       },
     ],

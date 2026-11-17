@@ -4,7 +4,6 @@ import {
   Button,
   LinkButton,
   Loader,
-  Router,
   getIcon,
   Toast,
   SiteApi,
@@ -24,7 +23,8 @@ import {
   trackingIdColumn, statusBadgeColumn, currentLocationColumn,
   destinationColumn, senderColumn, recipientColumn, packageDetailsColumn,
 } from '../../../utils/package-table-columns.js'
-import { getHubLocation, isHubLocationSet } from './hubLocation.js'
+import { pluralize, workingFromText, TOOLTIPS } from '../../../utils/copy.js'
+import { getHubLocation, requireHubLocation } from './hubLocation.js'
 import { guardUnsaved } from './unsavedGuard.js'
 import { cleanLine, notifyRemovedChars } from '../../../utils/text-field.js'
 
@@ -44,6 +44,8 @@ import { cleanLine, notifyRemovedChars } from '../../../utils/text-field.js'
  * @param {(results: {pkg: object, newStatus: string}[], helpers: { printContainer: object }) => void | Promise<void>} [options.afterUpdate] - Called after the bulk update with the updated items + a hidden print container; used e.g. to print a document for a transition.
  * @param {(pkg: object) => boolean} [options.requiresIndividual] - Items matching this cannot be bulk-processed. If any is scanned alongside other items, only these are shown with a blocking message (no bulk update).
  * @param {string} [options.individualMessage] - Message shown when a bulk scan is blocked by requiresIndividual items.
+ * @param {string} [options.confirmLabel] - Label for the confirm button. Defaults to "Confirm {title}".
+ * @param {string} [options.confirmTooltip] - Tooltip for the confirm button. Auto-determined from title + ctx if not provided.
  * @param {object} [options.ctx=INTERNAL_MAIL] - Mail context (which lists/timeline/hub path). Defaults to internal mail.
  * @returns {Promise<[object, object]>} [navbar, contentArea]
  */
@@ -58,17 +60,28 @@ export async function createMailActionRoute(config, {
   smartCardWhen = null,
   afterUpdate = null,
   requiresIndividual = null,
-  individualMessage = 'Some scanned items must be processed one at a time and cannot be included in a bulk update. Scan them individually.',
+  individualMessage = 'Some scanned items must be processed one at a time. Scan them individually.',
+  confirmLabel = null,
+  confirmTooltip = null,
   ctx = INTERNAL_MAIL,
 }) {
   config.setRouteTitle(title)
 
-  // Guard: redirect to hub if location not set
-  if (!isHubLocationSet()) {
-    Toast.warning('Please select your current location first')
-    Router.navigateTo(ctx.basePath)
-    return [new Container([]), new Container([])]
-  }
+  // Guard: redirect to hub if working office not set
+  if (!requireHubLocation(ctx.basePath)) return [new Container([]), new Container([])]
+
+  // Resolve the button label and tooltip from the route's title + context.
+  const resolvedConfirmLabel = confirmLabel || `Confirm ${title}`
+  const resolvedConfirmTooltip = confirmTooltip || (() => {
+    const t = title.toLowerCase()
+    if (t === 'dispatch') return TOOLTIPS.scan.confirmDispatch
+    if (t === 'reception') return TOOLTIPS.scan.confirmReception
+    if (t === 'delivery') return ctx.key === 'external' ? TOOLTIPS.scan.confirmDeliveryExternal : TOOLTIPS.scan.confirmDeliveryInternal
+    return ''
+  })()
+
+  // Build the accepted-statuses text for rejection messages.
+  const acceptedStatusText = expectedStatuses.map((s) => STATUS_LABELS[s]).join(' or ')
 
   const siteApi = new SiteApi()
   const user = new CurrentUser()
@@ -81,13 +94,13 @@ export async function createMailActionRoute(config, {
   let smartCardResolver = null
 
   // Unsaved-work guard: scanned items exist only in memory until the operator
-  // presses "Update All". Warn before any navigation (and on tab close/refresh)
+  // presses the confirm button. Warn before any navigation (and on tab close/refresh)
   // while items are scanned but unsaved, so a scan session is never lost silently.
   // Cleared automatically on route teardown (see guardUnsaved).
   guardUnsaved(
     config,
     () => scannedPackages.length > 0,
-    () => `You have ${scannedPackages.length} scanned mail item(s) that have not been saved yet. Leave without saving?`,
+    () => `You have ${pluralize(scannedPackages.length, 'scanned item')} not yet saved. Leave without saving?`,
   )
 
   // Page loader (full-page overlay during async operations).
@@ -216,7 +229,7 @@ export async function createMailActionRoute(config, {
     }
 
     if (parseErrors > 0) {
-      Toast.warning(`${parseErrors} line(s) could not be parsed`)
+      Toast.warning(`${pluralize(parseErrors, 'line')} could not be parsed`)
     }
 
     if (parsed.length === 0) {
@@ -268,18 +281,18 @@ export async function createMailActionRoute(config, {
 
     try {
       const allPackages = await fetchItemsAcrossLists(siteApi, ctx.listNames)
+      const notFound = []
 
       for (const entry of parsedEntries) {
         if (existingIds.has(entry.TrackingNumber)) continue
 
         const match = allPackages.find(p => p.Title === entry.TrackingNumber)
-        if (!match) continue
+        if (!match) { notFound.push(entry.TrackingNumber); continue }
 
         // Validate status -- skip with warning instead of blocking
         if (!expectedStatuses.includes(match.Status)) {
           Toast.warning(
-            `${match.Title} skipped -- status "${STATUS_LABELS[match.Status]}" ` +
-            `not accepted by ${title}`
+            `${match.Title} not added: it is ${STATUS_LABELS[match.Status]}. ${title} accepts ${acceptedStatusText} mail only.`
           )
           continue
         }
@@ -289,14 +302,18 @@ export async function createMailActionRoute(config, {
         added++
       }
 
+      if (notFound.length > 0) {
+        Toast.warning(`${notFound.join(', ')} not found`)
+      }
+
       if (added === 0) {
         Toast.warning('No new matching mail found')
       } else {
-        Toast.success(`${added} mail item(s) scanned`)
+        Toast.success(`${pluralize(added, 'item')} scanned`)
       }
     } catch (err) {
       console.error('[mailAction] failed to load/match scanned mail', err)
-      Toast.error('Failed to load mail')
+      Toast.error('Could not load mail. Try scanning again.')
     } finally {
       hideLoader()
     }
@@ -323,11 +340,11 @@ export async function createMailActionRoute(config, {
 
       const prompt = new Container([
         new Container([
-          new Text('Digital Signature Required', {
+          new Text('Smart Card Required', {
             type: 'h2',
             class: 'posthub__prompt-title'
           }),
-          new Text('Ask recipient to pass their smart card on the reader', {
+          new Text('Ask the person collecting to present their smart card to the reader.', {
             type: 'p',
             class: 'posthub__prompt-subtitle'
           }),
@@ -376,16 +393,14 @@ export async function createMailActionRoute(config, {
       const updatedResults = []
       const failedItems = []
       let updatedCount = 0
-      let skippedCount = 0
 
       // Update each item independently: one failure (e.g. a 412 concurrency
       // conflict) must NOT abort the whole batch and hide which items saved.
       // Failed items are collected and kept scanned so the operator can retry.
       for (const { pkg, target: newStatus } of plan) {
-        if (newStatus === null) {
-          skippedCount++
-          continue
-        }
+        // Defensive: no current getTargetStatus returns null (wrong-office mail
+        // is recorded as a pass-through, not skipped).
+        if (newStatus === null) continue
 
         const now = new Date().toISOString()
         const updateFields = {
@@ -436,28 +451,26 @@ export async function createMailActionRoute(config, {
           await afterUpdate(updatedResults, { printContainer })
         } catch (err) {
           console.error('[mailAction] afterUpdate hook failed', err)
-          Toast.warning('Mail updated, but a follow-up document failed to print. Reprint it manually.')
+          Toast.warning('Mail updated, but the document did not print. Reprint it from Search.')
         }
       }
 
       const summary = Object.entries(statusCounts)
-        .map(([status, count]) => `${count} ${STATUS_LABELS[status].toLowerCase()}`)
+        .map(([status, count]) => `${count} ${STATUS_LABELS[status]}`)
         .join(', ')
-
-      const skippedMsg = skippedCount > 0 ? `, ${skippedCount} skipped (wrong destination)` : ''
 
       if (failedItems.length === 0) {
         // Everything saved -- clear scanned items, disarming the unsaved guard.
         scannedPackages = []
-        loading.success(`${updatedCount} mail item(s) updated${skippedMsg}`)
+        loading.success(`${pluralize(updatedCount, 'item')} updated`)
 
         tableContainer.children = [
           new Container([
-            new Text('Update Confirmed', {
+            new Text(`${title} Confirmed`, {
               type: 'h2',
               class: 'posthub__prompt-title'
             }),
-            new Text(`${updatedCount} mail item(s) updated: ${summary}${skippedMsg}.`, {
+            new Text(`${pluralize(updatedCount, 'item')} updated: ${summary}.`, {
               type: 'p',
               class: 'posthub__prompt-subtitle'
             }),
@@ -496,14 +509,14 @@ export async function createMailActionRoute(config, {
 
         loading.error(
           updatedCount > 0
-            ? `${updatedCount} updated${skippedMsg}, ${failedItems.length} failed: ${failedList}. Press Update All to retry.`
-            : `Could not save: ${failedList}. Press Update All to retry.`
+            ? `${updatedCount} updated, ${failedItems.length} failed: ${failedList}. Press ${resolvedConfirmLabel} to retry.`
+            : `Could not save: ${failedList}. Press ${resolvedConfirmLabel} to retry.`
         )
         updateView()
       }
     } catch (err) {
       console.error('[mailAction] bulk update failed', err)
-      loading.error('Failed to update mail')
+      loading.error('Could not update mail. Try again.')
     } finally {
       if (updateAllBtn) updateAllBtn.isLoading = false
       smartCardValue = null
@@ -514,11 +527,11 @@ export async function createMailActionRoute(config, {
     if (scannedPackages.length === 0) {
       const prompt = new Container([
         new Container([
-          new Text('Waiting for QR Scan', {
+          new Text('Ready to Scan', {
             type: 'h2',
             class: 'posthub__prompt-title'
           }),
-          new Text('Scan QR code labels or paste mail data to begin', {
+          new Text('Scan the QR labels. You can scan several items before confirming.', {
             type: 'p',
             class: 'posthub__prompt-subtitle'
           }),
@@ -535,7 +548,7 @@ export async function createMailActionRoute(config, {
       if (individual.length > 0 && scannedPackages.length > 1) {
         const warn = new Container([
           new Container([
-            new Text('Cannot process in bulk', { type: 'h2', class: 'posthub__prompt-title' }),
+            new Text('Scan These One at a Time', { type: 'h2', class: 'posthub__prompt-title' }),
             new Text(individualMessage, { type: 'p', class: 'posthub__prompt-subtitle' }),
           ], { class: 'posthub__prompt-content' }),
         ], { class: 'posthub__prompt posthub__prompt--warning' })
@@ -555,7 +568,7 @@ export async function createMailActionRoute(config, {
           tableClass: 'mail-action__table',
         })
 
-        const clearBtn = new Button('Clear & Scan Individually', {
+        const clearBtn = new Button('Clear List and Scan One by One', {
           onClickHandler: () => {
             scannedPackages = []
             updateView()
@@ -570,20 +583,22 @@ export async function createMailActionRoute(config, {
       }
 
       const locationLabel = new Container([
-        new Text(`Operating from: ${getHubLocation()}`, {
+        new Text(workingFromText(getHubLocation()), {
           type: 'span',
-          class: 'posthub__bulk-location-label'
+          class: 'posthub__bulk-location-label',
+          title: TOOLTIPS.workingOffice,
         }),
       ], { class: 'posthub__bulk-location' })
 
-      updateAllBtn = new Button('Update All', {
+      updateAllBtn = new Button(resolvedConfirmLabel, {
+        title: resolvedConfirmTooltip,
         onClickHandler: handleBulkUpdate,
         class: 'posthub__update-all-btn'
       })
 
       const pendingHint = new Container([
         new Text(
-          `${scannedPackages.length} item(s) scanned -- not saved until you press Update All`,
+          `${pluralize(scannedPackages.length, 'item')} scanned. Nothing is saved until you press ${resolvedConfirmLabel}.`,
           { type: 'span', class: 'posthub__bulk-pending-hint' }
         ),
       ], { class: 'posthub__bulk-pending' })
@@ -595,12 +610,12 @@ export async function createMailActionRoute(config, {
       ], { class: 'posthub__bulk-bar' })
 
       const noteInput = new TextArea(noteField, {
-        placeholder: `Optional note added to every scanned item's timeline (max ${NOTE_MAX_LENGTH} characters)...`,
+        placeholder: 'Added to the history of every scanned item. Visible to sender and recipient.',
         rows: 2,
         maxLength: NOTE_MAX_LENGTH,
       })
       const noteSection = new Container([
-        new FieldLabel('Note for this batch', noteInput),
+        new FieldLabel('Note (optional)', noteInput, { tooltip: TOOLTIPS.scan.note(NOTE_MAX_LENGTH) }),
       ], { class: 'posthub__bulk-note' })
 
       const table = createPackageTable({

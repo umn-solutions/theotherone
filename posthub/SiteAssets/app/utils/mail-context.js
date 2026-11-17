@@ -60,6 +60,31 @@ export async function fetchTaggedItems(siteApi, listName, query, options) {
 }
 
 /**
+ * Fetch EVERY item of one list page by page (no CAML Where, so it never hits the
+ * list view threshold), tagging each with `__listName`. Reports progress after
+ * each page and stops early when `shouldStop()` turns true. Rejects on failure.
+ *
+ * @param {object} siteApi
+ * @param {string} listName
+ * @param {object} [opts]
+ * @param {number} [opts.pageSize=2000]  Items per request (CAML RowLimit).
+ * @param {(pageCount: number) => void} [opts.onPage]  Called with each page's item count.
+ * @param {() => boolean} [opts.shouldStop]  Checked between pages (e.g. user cancelled).
+ * @returns {Promise<object[]>} Items read so far (all, unless stopped early).
+ */
+export async function fetchAllTaggedItemsPaged(siteApi, listName, { pageSize = 2000, onPage, shouldStop } = {}) {
+  const out = []
+  let page = await siteApi.list(listName).getItemsPaged(undefined, { pageSize })
+  for (;;) {
+    for (const it of page.items) it.__listName = listName
+    out.push(...page.items)
+    onPage?.(page.items.length)
+    if (!page.next || shouldStop?.()) return out
+    page = await page.next()
+  }
+}
+
+/**
  * Fetch items from several lists, tagging each with its source list on
  * `__listName` so callers can write back to the correct list. Errors on one
  * list are logged and skipped (best-effort merge).

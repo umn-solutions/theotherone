@@ -3,12 +3,13 @@ import { createMailActionRoute } from '../../utils/mailActionTemplate.js'
 import { printSignatureDoc } from '../../utils/qrSignatureDoc.js'
 import { EXTERNAL_MAIL } from '../../../../utils/mail-context.js'
 import { guardAccess } from '../../../../utils/access.js'
+import { PAGE_DESCRIPTIONS } from '../../../../utils/copy.js'
 
 export default defineRoute(async (config) => {
   // Facilities route: employee+ access required
   if (!guardAccess('EMPLOYEE')) return []
 
-  // Off-platform (subsidiary) recipients run an exception branch:
+  // Subsidiary recipients run an exception branch:
   //   arrived -> awaiting signature (courier handover, print signed proof doc)
   //   awaiting signature -> delivered (signed doc scanned back)
   // No smartcard for the exception; the signed paper is the proof.
@@ -17,7 +18,7 @@ export default defineRoute(async (config) => {
 
   return createMailActionRoute(config, {
     title: 'Delivery',
-    subtitle: 'Deliver external mail. Off-platform recipients route via courier handover + signed proof.',
+    subtitle: PAGE_DESCRIPTIONS.externalDelivery,
     backRoute: 'facilities/external-mail',
     expectedStatuses: ['arrived', 'in transit', 'awaiting signature'],
     getTargetStatus: (pkg) => {
@@ -40,7 +41,7 @@ export default defineRoute(async (config) => {
     // The handover (off-platform, arrived/in transit -> awaiting signature) prints a
     // per-order document, so it can't be batched with other items.
     requiresIndividual: (pkg) => isOffPlatform(pkg) && pkg.Status !== 'awaiting signature',
-    individualMessage: 'Off-platform deliveries generate a signature document and must be delivered one at a time. Scan them individually.',
+    individualMessage: 'Subsidiary deliveries print a proof-of-delivery form, so scan them one at a time.',
     ctx: EXTERNAL_MAIL,
   })
 })

@@ -42,11 +42,11 @@ export const STATUS_LABELS = {
 };
 
 export const STATUS_DESCRIPTIONS = {
-	"pending": "Mail registered on the platform",
-	"in transit": "Mail dispatched, currently being transported",
-	"arrived": "Mail arrived at destination office",
-	"awaiting signature": "Handed to courier for subsidiary delivery; awaiting signed proof",
-	"delivered": "Mail picked up by recipient",
+	"pending": "Registered online, not yet handed to a facilities desk.",
+	"in transit": "On its way. It may stop at other offices before it arrives.",
+	"arrived": "At the destination office, ready for pickup.",
+	"awaiting signature": "With a courier for a subsidiary office. Waiting for the signed proof of delivery.",
+	"delivered": "Collected. Delivery complete.",
 };
 
 // Non-status timeline events. Stored in TimelineEntries under the Status column
@@ -59,12 +59,17 @@ export const TIMELINE_EVENT_REPRINT_DOCUMENT = "reprint document";
 export const TIMELINE_EVENT_REROUTE = "reroute";
 
 export const TIMELINE_EVENT_DESCRIPTIONS = {
-	[TIMELINE_EVENT_CHASE]: "Pickup reminder sent to recipient",
-	[TIMELINE_EVENT_ARRIVAL_NOTICE]: "Arrival notification sent to recipient",
+	[TIMELINE_EVENT_CHASE]: "Pickup reminder emailed",
+	[TIMELINE_EVENT_ARRIVAL_NOTICE]: "Arrival notification emailed",
 	[TIMELINE_EVENT_REPRINT]: "QR label reprinted",
-	[TIMELINE_EVENT_REPRINT_DOCUMENT]: "Mail Order document reprinted",
-	[TIMELINE_EVENT_REROUTE]: "Rerouted to correct destination",
+	[TIMELINE_EVENT_REPRINT_DOCUMENT]: "Proof of delivery reprinted",
+	[TIMELINE_EVENT_REROUTE]: "Rerouted",
 };
+
+// Maintenance staleness thresholds (days): which mail each admin action affects.
+// Also quoted in user-facing copy (home FAQ, maintenance cards).
+export const CHASE_STALE_DAYS = 11;
+export const CLEANUP_STALE_DAYS = 7;
 
 // Categorical palette for per-building series (grouped bars, donut, lines,
 // matrix). All values are drawn from the existing PostHub token palette
@@ -96,3 +101,12 @@ export const PARTY_LABELS = {
 	incoming: "From",
 	outgoing: "To",
 };
+
+// User-facing name for PostHub's own id (Title: POSTHUB-... / EXT-... / BULK-...).
+export const TRACKING_NUMBER_LABEL = "Tracking Number";
+
+// Single user-facing name for the carrier's per-item tracking id
+// (ExternalMailItems.ExternalTrackingId). Register forms, search filter, detail
+// panel, export and printed documents must all use this exact label.
+export const EXTERNAL_TRACKING_ID_LABEL = "Carrier Tracking Number";
+export const EXTERNAL_TRACKING_ID_LABEL_PLURAL = "Carrier Tracking Numbers";

@@ -1,4 +1,5 @@
 import { Container, Text } from '../libs/nofbiz/nofbiz.base.js'
+import { createTextWithTooltip } from '../utils/tooltip.js'
 
 let _chartIdCounter = 0
 
@@ -13,6 +14,7 @@ let _chartIdCounter = 0
  * @param {object} args
  * @param {string} args.title
  * @param {string} [args.subtitle]
+ * @param {string} [args.tooltip]  Hover help on the title: how to read the chart.
  * @returns {{
  *   card: Container,
  *   mountId: string,
@@ -21,12 +23,12 @@ let _chartIdCounter = 0
  *   setBody: (children: any[]) => void,
  * }}
  */
-export function createChartCard({ title, subtitle, class: extraClass }) {
+export function createChartCard({ title, subtitle, tooltip, class: extraClass }) {
   const mountId = `posthub-chart-${++_chartIdCounter}`
   const mount = new Container([], { id: mountId, class: 'posthub__chart-card__canvas' })
 
   const headerChildren = [
-    new Text(title, { type: 'h3', class: 'posthub__chart-card__title' }),
+    createTextWithTooltip(title, tooltip, { type: 'h3', class: 'posthub__chart-card__title' }),
   ]
   if (subtitle) {
     headerChildren.push(new Text(subtitle, { type: 'p', class: 'posthub__chart-card__subtitle' }))

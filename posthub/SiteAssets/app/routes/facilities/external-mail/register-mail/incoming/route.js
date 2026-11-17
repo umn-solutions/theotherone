@@ -24,15 +24,15 @@ export default defineRoute((config) => {
       }),
       new Text('Incoming Mail', { type: 'h1', class: 'posthub__page-title' }),
     ], { class: 'posthub__title-with-icon' }),
-    new Text('Is this incoming mail tracked?', {
+    new Text('Does this mail need tracking?', {
       type: 'p',
       class: 'posthub__page-subtitle',
     }),
   ], { class: 'posthub__page-header' })
 
   const cards = [
-    { title: 'With Tracking', desc: 'Register a multipart collection under one QR label, then track it through dispatch, reception and delivery.', route: 'tracked' },
-    { title: 'Without Tracking', desc: 'Quickly log incoming items for reporting. No QR label, no workflow.', route: 'untracked' },
+    { title: 'With Tracking', desc: 'For mail that must reach a person. One QR label covers all items for the same recipient. It is then received and delivered like internal mail.', route: 'tracked' },
+    { title: 'Without Tracking', desc: 'For mail that only needs counting, e.g. bulk post. Logged for reports, with no label or status.', route: 'untracked' },
   ]
 
   const grid = new Container(

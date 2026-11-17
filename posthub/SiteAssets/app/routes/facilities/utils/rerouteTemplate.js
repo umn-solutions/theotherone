@@ -8,7 +8,6 @@ import {
   FormField,
   FieldLabel,
   Loader,
-  Router,
   getIcon,
   Toast,
   SiteApi,
@@ -20,8 +19,9 @@ import { createNavbar } from '../../../components/navbar.js'
 import { createPackageDetailPanel } from '../../../components/packageDetailPanel.js'
 import { LIST_LOCATIONS, STATUS_LABELS, TIMELINE_EVENT_REROUTE } from '../../../utils/constants.js'
 import { getLocationValue, getUserDisplayName, getUserEmail } from '../../../utils/user-helpers.js'
+import { PAGE_DESCRIPTIONS, TOOLTIPS } from '../../../utils/copy.js'
 import { fetchItemsAcrossLists } from '../../../utils/mail-context.js'
-import { getHubLocation, isHubLocationSet } from './hubLocation.js'
+import { getHubLocation, requireHubLocation } from './hubLocation.js'
 import { guardUnsaved } from './unsavedGuard.js'
 import { cleanLine, notifyRemovedChars } from '../../../utils/text-field.js'
 
@@ -43,11 +43,7 @@ export async function createRerouteRoute(config, ctx) {
   // so leave room for the prefix.
   const REASON_MAX_LENGTH = 200
 
-  if (!isHubLocationSet()) {
-    Toast.warning('Please select your current location first')
-    Router.navigateTo(ctx.basePath)
-    return [new Container([])]
-  }
+  if (!requireHubLocation(ctx.basePath)) return [new Container([])]
 
   const siteApi = new SiteApi()
   const user = new CurrentUser()
@@ -57,7 +53,7 @@ export async function createRerouteRoute(config, ctx) {
     activeLocations = await siteApi.list(LIST_LOCATIONS).getItems({ IsActive: 'true' })
   } catch (err) {
     console.error('[reroute] failed to load locations', err)
-    Toast.error('Failed to load locations')
+    Toast.error('Could not load offices. Refresh to try again.')
   }
   const locationOptions = activeLocations.map((loc) => loc.Title)
 
@@ -89,7 +85,7 @@ export async function createRerouteRoute(config, ctx) {
       }),
       new Text('Reroute', { type: 'h1', class: 'posthub__page-title' }),
     ], { class: 'posthub__title-with-icon' }),
-    new Text('Redirect mail to a different destination with a mandatory explanation', {
+    new Text(PAGE_DESCRIPTIONS.reroute, {
       type: 'p',
       class: 'posthub__page-subtitle',
     }),
@@ -210,7 +206,7 @@ export async function createRerouteRoute(config, ctx) {
       }
 
       if (!REROUTABLE_STATUSES.includes(match.Status)) {
-        Toast.warning(`${match.Title} skipped -- status "${STATUS_LABELS[match.Status]}" cannot be rerouted`)
+        Toast.warning(`${match.Title} not added: it is ${STATUS_LABELS[match.Status]}. Only In Transit or Arrived mail can be rerouted.`)
         return
       }
 
@@ -233,7 +229,7 @@ export async function createRerouteRoute(config, ctx) {
       renderForm()
     } catch (err) {
       console.error('[reroute] failed to load mail', err)
-      Toast.error('Failed to load mail')
+      Toast.error('Could not load mail. Try scanning again.')
     } finally {
       hideLoader()
     }
@@ -249,8 +245,8 @@ export async function createRerouteRoute(config, ctx) {
   function renderWaiting() {
     const prompt = new Container([
       new Container([
-        new Text('Waiting for QR Scan', { type: 'h2', class: 'posthub__prompt-title' }),
-        new Text('Scan a QR code label to start a reroute. Only mail with status "In Transit" or "Arrived" can be rerouted.', {
+        new Text('Ready to Scan', { type: 'h2', class: 'posthub__prompt-title' }),
+        new Text('Scan the QR label of the mail to reroute. Only In Transit or Arrived mail can be rerouted.', {
           type: 'p',
           class: 'posthub__prompt-subtitle',
         }),
@@ -274,7 +270,7 @@ export async function createRerouteRoute(config, ctx) {
         type: 'p',
         class: 'posthub__prompt-subtitle',
       }),
-      new Text(`Currently at: ${currentLoc} - Heading to: ${currentDest}`, {
+      new Text(`Currently at ${currentLoc}, heading to ${currentDest}.`, {
         type: 'p',
         class: 'posthub__prompt-subtitle',
       }),
@@ -291,13 +287,14 @@ export async function createRerouteRoute(config, ctx) {
 
     const reasonField = new FormField({ value: '' })
     const reasonTextArea = new TextArea(reasonField, {
-      placeholder: `Explain why this mail is being rerouted (max ${REASON_MAX_LENGTH} characters)...`,
+      placeholder: `e.g. Recipient moved to TOR`,
       rows: 3,
     })
 
     const quickActions = []
     if (currentOrigin) {
-      const returnToSenderBtn = new Button(`Return to sender (${currentOrigin})`, {
+      const returnToSenderBtn = new Button(`Return to Sender (${currentOrigin})`, {
+        title: TOOLTIPS.reroute.returnToSender,
         onClickHandler: () => {
           destinationField.value = { value: currentOrigin, label: currentOrigin }
           if (!reasonField.value || !reasonField.value.trim()) {
@@ -364,7 +361,7 @@ export async function createRerouteRoute(config, ctx) {
             Status: TIMELINE_EVENT_REROUTE,
             Location: hubLocation,
             ChangedBy: changedBy,
-            Notes: `Rerouted to ${destination} -- ${reason}`,
+            Notes: `Rerouted to ${destination}: ${reason}`,
           })
 
           loading.success(`${pkg.Title} rerouted to ${destination}`)
@@ -384,7 +381,7 @@ export async function createRerouteRoute(config, ctx) {
           } catch (refreshErr) {
             console.error('[reroute] failed to refresh item for retry', refreshErr)
           }
-          loading.error('Failed to reroute mail')
+          loading.error('Could not reroute. Try again.')
         } finally {
           if (confirmBtn) confirmBtn.isLoading = false
         }
@@ -397,8 +394,8 @@ export async function createRerouteRoute(config, ctx) {
       formChildren.push(new Container(quickActions, { class: 'posthub__bulk-bar posthub__reroute-quick-actions' }))
     }
     formChildren.push(
-      new FieldLabel('New Destination Office *', destinationComboBox),
-      new FieldLabel('Reason for Reroute *', reasonTextArea),
+      new FieldLabel('New Destination Office', destinationComboBox),
+      new FieldLabel('Reason', reasonTextArea, { tooltip: TOOLTIPS.reroute.reason(REASON_MAX_LENGTH) }),
       new Container([cancelBtn, confirmBtn], { class: 'posthub__bulk-bar' }),
     )
 

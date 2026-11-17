@@ -12,8 +12,8 @@ export default defineRoute(async (config) => {
   // Outgoing mail is never tracked -- it is always a reporting-log entry.
   return createLogForm(config, {
     direction: MAIL_DIRECTIONS.OUTGOING,
-    title: 'Register Outgoing Mail',
-    subtitle: 'Log outgoing external mail items for reporting. Add a row per item. Outgoing mail is never tracked.',
+    title: 'Log Outgoing Mail',
+    subtitle: 'Log outgoing mail for reporting. Add one row per item type. Outgoing mail is not tracked.',
     backPath: 'facilities/external-mail/register-mail',
   })
 })

@@ -9,7 +9,8 @@ import {
   AccordionGroup,
 } from '../libs/nofbiz/nofbiz.base.js'
 import { createImageCard } from '../components/imageCard.js'
-import { APP_NAME } from '../utils/constants.js'
+import { APP_NAME, CLEANUP_STALE_DAYS } from '../utils/constants.js'
+import { PAGE_DESCRIPTIONS } from '../utils/copy.js'
 import { isFacilitiesEmployee } from '../utils/access.js'
 
 export default defineRoute((config) => {
@@ -42,7 +43,7 @@ export default defineRoute((config) => {
       type: 'h1',
       class: 'landing-page__title'
     }),
-    new Text('Mail Management Platform', {
+    new Text('Secure, traceable mail between company offices.', {
       type: 'p',
       class: 'landing-page__subtitle'
     }),
@@ -51,7 +52,7 @@ export default defineRoute((config) => {
       onClickHandler: () => howItWorksModal.open(),
       class: 'landing-page__how-it-works-btn',
     }),
-    new Text('by <a href="#">UMN Solutions</a> in partnership with <a href="#">NCIS</a>', {
+    new Text('by UMN Solutions in partnership with NCIS', {
       type: 'p',
       class: 'landing-page__credits',
     }),
@@ -71,14 +72,14 @@ export default defineRoute((config) => {
   const stepsSection = new Container([
     new Text('How it works', { type: 'h2', class: 'how-it-works__section-title' }),
     new Container([
-      step(1, `Create a ticket on ${APP_NAME}`,
-        `Open <strong>Send Mail</strong>, fill in recipient and package details. ${APP_NAME} issues a tracking number and a QR label. No ticket means no transport.`),
-      step(2, 'Drop off at a facilities access point',
-        'Bring the item with the QR label attached to the nearest facilities point. Staff scans the label and the package enters the logistics flow.'),
+      step(1, `Register your mail on ${APP_NAME}`,
+        `Open <strong>Send Mail</strong> and enter the recipient, destination office and a short description. ${APP_NAME} gives you a tracking number. Mail that isn't registered isn't transported.`),
+      step(2, 'Bring it to a facilities desk',
+        'Take the item to any facilities desk. Staff print and attach the QR label, then send it on its way.'),
       step(3, 'Track in real time',
-        'Open <strong>My Mail</strong> to see live status (pending / in transit / arrived / delivered) and the full timeline of every location and handler.'),
-      step(4, 'Pickup with a verified digital signature',
-        `The recipient (or anyone they authorise) collects the item at the destination office. Pickup is confirmed by a smart-card digital signature, cryptographically tied to whoever signed.`),
+        'Open <strong>My Mail</strong> to see the current status (Pending, In Transit, Arrived, Delivered) and every office it passed through.'),
+      step(4, 'Collect at the destination office',
+        'Collect it at the destination office. You, or a colleague you send, confirm pickup with a corporate smart card, so there is a record of who collected it.'),
     ], { class: 'how-it-works__steps' }),
   ], { class: 'how-it-works__section' })
 
@@ -108,31 +109,31 @@ export default defineRoute((config) => {
       new AccordionItem(
         'Do I have to register every item, even small envelopes?',
         [new Text(
-          `Yes. If it isn't in ${APP_NAME}, facilities won't transport it. The ticket is the chain of custody: without it there is no tracking number, no QR label, no audit trail.`,
+          `Yes. If it isn't in ${APP_NAME}, facilities won't transport it. The registration is the chain of custody: without it there is no tracking number, no QR label, no audit trail.`,
           { type: 'p' })]
       ),
       new AccordionItem(
-        'What if I forget to create the ticket and just bring the package?',
+        'What if I forget to register and just bring the mail?',
         [new Text(
           'Facilities will ask you to register it on the spot before accepting. It is faster to do it from your desk first.',
           { type: 'p' })]
       ),
       new AccordionItem(
-        'Where does my package go between drop-off and pickup?',
+        'Where does my mail go between drop-off and pickup?',
         [new Text(
-          'Every status change is location-stamped. Open the package in <strong>My Mail</strong> to see the timeline: which office it left, where it transited, when it arrived.',
+          'Every status change is location-stamped. Open the item in <strong>My Mail</strong> to see the timeline: which office it left, where it transited, when it arrived.',
           { type: 'p' })]
       ),
       new AccordionItem(
-        'What if my package shows up at the wrong office?',
+        'What if my mail shows up at the wrong office?',
         [new Text(
-          'It stays <em>in transit</em> and is re-routed. It is only marked <em>arrived</em> when it reaches the correct destination. Wrong-office stops are visible in the timeline.',
+          'It stays <em>In Transit</em> and is rerouted. It is only marked <em>Arrived</em> when it reaches the correct destination. Wrong-office stops are visible in the timeline.',
           { type: 'p' })]
       ),
       new AccordionItem(
         'Who can see my mail records?',
         [new Text(
-          '<strong>My Mail</strong> shows what you sent and received. Facilities staff see all packages for routing. Records of dispatched mail are kept for audit. Registrations never dropped off may be removed after 7 days.',
+          `<strong>My Mail</strong> shows what you sent and received. Facilities staff see all mail for routing. Records of dispatched mail are kept for audit. Registrations never dropped off may be removed after ${CLEANUP_STALE_DAYS} days.`,
           { type: 'p' })]
       ),
       new AccordionItem(
@@ -147,7 +148,7 @@ export default defineRoute((config) => {
   const howItWorksModal = new Modal([
     new Container([
       new Text(`How ${APP_NAME} works`, { type: 'h1', class: 'how-it-works__title' }),
-      new Text('A modern platform for secure internal mail transportation', {
+      new Text('Secure, traceable mail between company offices.', {
         type: 'p',
         class: 'how-it-works__subtitle',
       }),
@@ -169,13 +170,13 @@ export default defineRoute((config) => {
   const cardItems = [
     createImageCard({
       title: 'Send Mail',
-      description: 'Register a new mail item and generate a tracking label for internal delivery',
+      description: 'Register mail you want to send to a colleague in another office.',
       imageSrc: SEND_MAIL_IMAGE_URL,
       path: 'send-mail',
     }),
     createImageCard({
       title: 'My Mail',
-      description: 'View and track all your sent and received mail items in one place',
+      description: PAGE_DESCRIPTIONS.myMail,
       imageSrc: MY_MAIL_IMAGE_URL,
       path: 'my-mail',
     }),
@@ -185,7 +186,7 @@ export default defineRoute((config) => {
     cardItems.push(
       createImageCard({
         title: 'Facilities Hub',
-        description: 'Process incoming mail, scan QR labels, and route items across offices',
+        description: 'Print labels, scan mail and manage deliveries across offices.',
         imageSrc: FACILITIES_IMAGE_URL,
         path: 'facilities',
       }),

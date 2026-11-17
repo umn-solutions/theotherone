@@ -19,8 +19,10 @@ import { createNavbar } from '../../components/navbar.js'
 import { createPackageDetailPanel } from '../../components/packageDetailPanel.js'
 import {
   LIST_PACKAGES, LIST_LOCATIONS, LIST_EXTERNAL_PACKAGES, LIST_EXTERNAL_LOG,
-  STATUS_LABELS, MAIL_DIRECTIONS,
+  STATUS_LABELS, MAIL_DIRECTIONS, TRACKING_NUMBER_LABEL,
 } from '../../utils/constants.js'
+import { PAGE_DESCRIPTIONS, TOOLTIPS, pluralize } from '../../utils/copy.js'
+import { filterGroup } from '../../utils/package-filters.js'
 import { fetchTaggedItems } from '../../utils/mail-context.js'
 import { getUserDisplayName, getUserEmail, getLocationValue } from '../../utils/user-helpers.js'
 import { createPackageTable } from '../../utils/package-table.js'
@@ -133,8 +135,8 @@ export default defineRoute((config) => {
     const rowTime = (p) => __dayjs(p.SubmissionDate || p.Created).valueOf()
     allMyPackages.sort((a, b) => rowTime(a) - rowTime(b))
     if (failures.length === 0) loading.dismiss()
-    else if (failures.length === sources.length) loading.error('Failed to load mail')
-    else loading.error('Some mail could not be loaded')
+    else if (failures.length === sources.length) loading.error('Could not load mail. Refresh to try again.')
+    else loading.error('Some mail could not be loaded. Refresh to try again.')
     clearClientFilters()
     rebuildDatasets()
     applyFilters()
@@ -243,7 +245,7 @@ export default defineRoute((config) => {
           class: 'posthub__page-title'
         }),
       ], { class: 'posthub__title-with-icon' }),
-      new Text('Check both mail you sent, and are waiting to receive', {
+      new Text(PAGE_DESCRIPTIONS.myMail, {
         type: 'p',
         class: 'posthub__page-subtitle'
       }),
@@ -255,12 +257,14 @@ export default defineRoute((config) => {
   const sentTab = new Button('Sent', {
     onClickHandler: () => switchViewMode('sent'),
     class: 'my-mail__tab my-mail__tab--active',
+    title: TOOLTIPS.filters.sentTab,
   })
   const incomingTab = new Button('Incoming', {
     onClickHandler: () => switchViewMode('incoming'),
     class: 'my-mail__tab',
+    title: TOOLTIPS.filters.incomingTab,
   })
-  const viewDescription = new Text('Showing mail addressed to you', {
+  const viewDescription = new Text('Showing mail you sent', {
     type: 'p',
     class: 'my-mail__view-description',
   })
@@ -315,7 +319,7 @@ export default defineRoute((config) => {
     allowMultiple: true,
     allowFiltering: false,
     allowCreate: false,
-    placeholder: 'Select status...',
+    placeholder: 'All statuses',
     onSelectHandler: (selection) => { filters.status = extractSelection(selection); applyFilters() },
   })
 
@@ -324,7 +328,8 @@ export default defineRoute((config) => {
     allowMultiple: true,
     allowFiltering: true,
     allowCreate: false,
-    placeholder: 'Search sender/recipient...',
+    // Neutral: the label above names the role (Recipient / Sender) per tab.
+    placeholder: 'Search by name...',
     onSelectHandler: (selection) => { filters.senderRecipient = extractSelection(selection); applyFilters() },
   })
 
@@ -333,7 +338,7 @@ export default defineRoute((config) => {
     allowMultiple: true,
     allowFiltering: true,
     allowCreate: false,
-    placeholder: 'Search tracking ID...',
+    placeholder: 'e.g. POSTHUB-20260201-00001',
     onSelectHandler: (selection) => { filters.trackingId = extractSelection(selection); applyFilters() },
   })
 
@@ -342,7 +347,7 @@ export default defineRoute((config) => {
     allowMultiple: true,
     allowFiltering: true,
     allowCreate: false,
-    placeholder: 'Select current location...',
+    placeholder: 'All offices',
     onSelectHandler: (selection) => { filters.currentLocation = extractSelection(selection); applyFilters() },
   })
 
@@ -351,7 +356,7 @@ export default defineRoute((config) => {
     allowMultiple: true,
     allowFiltering: true,
     allowCreate: false,
-    placeholder: 'Select destination...',
+    placeholder: 'All offices',
     onSelectHandler: (selection) => { filters.destination = extractSelection(selection); applyFilters() },
   })
 
@@ -361,11 +366,19 @@ export default defineRoute((config) => {
 
   function updateTable() {
     if (filteredPackages.length === 0) {
-      resultsContainer.children = [createEmptyState('No mail found', 'No results match your current filters. Try adjusting the date range or clearing some filters.')]
+      const hasAnyMail = getBasePackages().length > 0
+      if (hasAnyMail) {
+        resultsContainer.children = [createEmptyState('No Mail Found', 'Nothing matches these filters. Widen the date range or clear filters.')]
+      } else {
+        const noMailText = viewMode === 'sent'
+          ? "You haven't sent any mail yet."
+          : 'No mail has been addressed to you yet.'
+        resultsContainer.children = [createEmptyState('No Mail Found', noMailText)]
+      }
       return
     }
 
-    const resultCount = new Text(`${filteredPackages.length} mail item(s)`, {
+    const resultCount = new Text(pluralize(filteredPackages.length, 'mail item'), {
       type: 'p',
       class: 'my-mail__result-count',
     })
@@ -391,7 +404,9 @@ export default defineRoute((config) => {
 
   // --- Sidebar filter section ---
 
-  const personFilterLabel = new Text('Sender', { type: 'label', class: 'my-mail__filter-label' })
+  const personFilterLabel = new Text('Recipient', { type: 'label', class: 'posthub__filter-label' })
+
+  const FG = 'my-mail__filter-group'
 
   const filterSection = new Container([
     new Container([
@@ -400,35 +415,29 @@ export default defineRoute((config) => {
         viewDescription,
       ], { class: 'my-mail__view-toggle' }),
 
-      new Container([
-        new Text('Dispatched Date', { type: 'label', class: 'my-mail__filter-label' }),
-        dateRangeInput,
-      ], { class: 'my-mail__filter-group' }),
+      filterGroup('Dispatched Between', dateRangeInput, {
+        tooltip: TOOLTIPS.filters.myMailPeriod,
+        extraClass: FG,
+      }),
 
-      new Container([
-        new Text('Status', { type: 'label', class: 'my-mail__filter-label' }),
-        statusComboBox,
-      ], { class: 'my-mail__filter-group' }),
+      filterGroup('Status', statusComboBox, { extraClass: FG }),
 
-      new Container([
-        new Text('Current Location', { type: 'label', class: 'my-mail__filter-label' }),
-        currentLocationComboBox,
-      ], { class: 'my-mail__filter-group' }),
+      filterGroup('Current Location', currentLocationComboBox, {
+        tooltip: TOOLTIPS.filters.currentLocation,
+        extraClass: FG,
+      }),
 
-      new Container([
-        new Text('Destination', { type: 'label', class: 'my-mail__filter-label' }),
-        destinationComboBox,
-      ], { class: 'my-mail__filter-group' }),
+      filterGroup('Destination', destinationComboBox, { extraClass: FG }),
 
       new Container([
         personFilterLabel,
         senderRecipientComboBox,
-      ], { class: 'my-mail__filter-group' }),
+      ], { class: `posthub__filter-group ${FG}` }),
 
-      new Container([
-        new Text('Tracking ID', { type: 'label', class: 'my-mail__filter-label' }),
-        trackingIdComboBox,
-      ], { class: 'my-mail__filter-group' }),
+      filterGroup(TRACKING_NUMBER_LABEL, trackingIdComboBox, {
+        tooltip: TOOLTIPS.filters.myMailTrackingNumber,
+        extraClass: FG,
+      }),
     ], { class: 'my-mail__filter-grid' }),
 
     new Container([
@@ -464,7 +473,7 @@ export default defineRoute((config) => {
       activeLocations = await siteApi.list(LIST_LOCATIONS).getItems({ IsActive: 'true' })
     } catch (err) {
       console.error('[my-mail] load locations failed', err)
-      Toast.error('Failed to load locations')
+      Toast.error('Could not load offices. Refresh to try again.')
     }
 
     const locationOptions = activeLocations.map(l => l.Title)

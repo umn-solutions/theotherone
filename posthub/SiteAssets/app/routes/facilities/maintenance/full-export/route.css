@@ -1,0 +1,62 @@
+/* FULL MAIL EXPORT - Route-specific overrides only */
+/* Notice, progress bar, filter groups and section headers come from shared.css */
+
+.full-export__body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xxl);
+  padding: 0 var(--space-xxxl) var(--space-xxl) var(--space-xxxl);
+}
+
+.full-export__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-l);
+  padding: var(--space-xxl) var(--space-xxxl);
+  background: var(--color-bg-base);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-8);
+}
+
+.full-export__sources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sNudge);
+}
+
+/* Same flowing row as the search pages' top filter bar */
+.full-export__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-sNudge) var(--space-xxl);
+}
+
+.full-export__filters .posthub__filter-group {
+  flex: 1 1 13rem;
+  min-width: 12rem;
+  max-width: 22rem;
+}
+
+.full-export__actions {
+  justify-content: flex-end;
+}
+
+.full-export__progress-status {
+  margin: 0;
+  font-size: var(--font-size-300);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg-primary);
+}
+
+/* The bar sits between status and detail text; panel gap handles spacing */
+.full-export__progress .posthub__progress-track {
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .full-export__body { padding: 0 var(--space-l) var(--space-l) var(--space-l); }
+  .full-export__panel { padding: var(--space-l); }
+}

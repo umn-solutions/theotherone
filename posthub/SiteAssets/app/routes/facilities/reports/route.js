@@ -18,6 +18,7 @@ import { createGroupedBarChart } from '../../../components/charts/groupedBarChar
 import { createFlowMatrix } from '../../../components/charts/flowMatrix.js'
 
 import { guardAccess } from '../../../utils/access.js'
+import { TOOLTIPS } from '../../../utils/copy.js'
 
 import { REPORTS_PATH, loadActiveLocationTitles, registerReportCleanup } from './utils/reportDashboard.js'
 import { currentMonthKey, monthLabel, fetchInternalMonth, fetchExternalMonth } from './utils/report-data.js'
@@ -50,7 +51,7 @@ export default defineRoute((config) => {
 
   const { header } = createPageHeader({
     title: 'Reports',
-    subtitle: `Mail activity for ${monthLabel(monthKey)} (items created this month)`,
+    subtitle: `Mail registered in ${monthLabel(monthKey)}, excluding mail never dropped off.`,
     backPath: 'facilities',
   })
 
@@ -58,10 +59,10 @@ export default defineRoute((config) => {
    * One clickable summary panel + its "Detailed view" button.
    * @returns {{ column: Container, kpiRow: Container, chartCard: object }}
    */
-  function createSummaryPanel({ title, description, icon, detailPath, chartTitle, chartSubtitle }) {
+  function createSummaryPanel({ title, description, icon, detailPath, chartTitle, chartSubtitle, chartTooltip }) {
     const open = () => Router.navigateTo(`${REPORTS_PATH}/${detailPath}`)
     const kpiRow = new Container([], { class: 'reports-summary__kpis' })
-    const chartCard = createChartCard({ title: chartTitle, subtitle: chartSubtitle, class: 'reports__card--scroll' })
+    const chartCard = createChartCard({ title: chartTitle, subtitle: chartSubtitle, tooltip: chartTooltip, class: 'reports__card--scroll' })
 
     const panel = new Container([
       new Container([
@@ -80,7 +81,7 @@ export default defineRoute((config) => {
 
     const column = new Container([
       panel,
-      new Button('Detailed view', { onClickHandler: open, class: 'reports-summary__button' }),
+      new Button('Open Full Report', { onClickHandler: open, class: 'reports-summary__button' }),
     ], { class: 'reports-summary__column' })
 
     return { column, kpiRow, chartCard }
@@ -91,8 +92,9 @@ export default defineRoute((config) => {
     description: 'Mail sent between company offices',
     icon: 'mail-send-line',
     detailPath: 'internal-details',
-    chartTitle: 'Flow between buildings',
+    chartTitle: 'Mail Flow Between Offices',
     chartSubtitle: 'Origin (rows) to destination (columns)',
+    chartTooltip: TOOLTIPS.reports.flowMatrix,
   })
 
   const external = createSummaryPanel({
@@ -100,7 +102,7 @@ export default defineRoute((config) => {
     description: 'Mail received from and sent to external parties',
     icon: 'mail-unread-line',
     detailPath: 'external-details',
-    chartTitle: 'Volume by office',
+    chartTitle: 'Volume by Office',
     chartSubtitle: 'Incoming and outgoing items per office',
   })
 
@@ -113,10 +115,10 @@ export default defineRoute((config) => {
   function renderInternal({ packages, timeline }, buildings) {
     const k = internalKpis(packages, timeline)
     internal.kpiRow.children = [
-      createKpiCard({ label: 'Sent', value: k.sent, icon: getIcon('send-plane-line') }),
-      createKpiCard({ label: 'Delivered', value: k.delivered, icon: getIcon('checkbox-circle-line') }),
-      createKpiCard({ label: '% Delivered', value: fmtPctValue(k.pctDelivered), icon: getIcon('check-double-line'), modifier: 'delivered' }),
-      createKpiCard({ label: 'Avg Delivery', value: formatDuration(k.avgMs), icon: getIcon('route-line') }),
+      createKpiCard({ label: 'Sent', value: k.sent, icon: getIcon('send-plane-line'), tooltip: TOOLTIPS.reports.sentInternal }),
+      createKpiCard({ label: 'Delivered', value: k.delivered, icon: getIcon('checkbox-circle-line'), tooltip: TOOLTIPS.reports.deliveredInternal }),
+      createKpiCard({ label: '% Delivered', value: fmtPctValue(k.pctDelivered), icon: getIcon('check-double-line'), modifier: 'delivered', tooltip: TOOLTIPS.reports.deliveredPctInternal }),
+      createKpiCard({ label: 'Avg Delivery Time', value: formatDuration(k.avgMs), icon: getIcon('route-line'), tooltip: TOOLTIPS.reports.avgDeliveryTime }),
     ]
     flowMatrix = createFlowMatrix({ container: internal.chartCard.getMountElement(), labelFormatter: shortLabel })
     flowMatrix.render()
@@ -127,10 +129,10 @@ export default defineRoute((config) => {
   function renderExternal(data, offices) {
     const k = externalKpis(data, data.timeline)
     external.kpiRow.children = [
-      createKpiCard({ label: 'Incoming', value: k.incoming, icon: getIcon('inbox-line') }),
-      createKpiCard({ label: 'Outgoing', value: k.outgoing, icon: getIcon('send-plane-line') }),
-      createKpiCard({ label: 'Delivered', value: k.delivered, icon: getIcon('checkbox-circle-line'), sublabel: 'tracked items' }),
-      createKpiCard({ label: '% Delivered', value: fmtPctValue(k.pctDelivered), icon: getIcon('check-double-line'), modifier: 'delivered', sublabel: 'of tracked items' }),
+      createKpiCard({ label: 'Incoming', value: k.incoming, icon: getIcon('inbox-line'), tooltip: TOOLTIPS.reports.incomingExternal }),
+      createKpiCard({ label: 'Outgoing', value: k.outgoing, icon: getIcon('send-plane-line'), tooltip: TOOLTIPS.reports.outgoing }),
+      createKpiCard({ label: 'Delivered', value: k.delivered, icon: getIcon('checkbox-circle-line'), sublabel: 'tracked items', tooltip: TOOLTIPS.reports.deliveredExternal }),
+      createKpiCard({ label: '% Delivered', value: fmtPctValue(k.pctDelivered), icon: getIcon('check-double-line'), modifier: 'delivered', sublabel: 'of tracked items', tooltip: TOOLTIPS.reports.deliveredPctExternal }),
     ]
     const stat = externalOfficeStats(data.all, offices)
     volumeByOffice = createGroupedBarChart({
@@ -172,7 +174,7 @@ export default defineRoute((config) => {
     else console.error('[Reports.summary] external mail load failed', externalRes.reason)
 
     const failed = [internalRes, externalRes].filter(r => r.status === 'rejected').length
-    if (failed) loading.error(failed === 2 ? 'Failed to load reports' : 'Some report data failed to load')
+    if (failed) loading.error(failed === 2 ? 'Could not load reports. Refresh to try again.' : 'Some report data failed to load. Refresh to try again.')
     else loading.dismiss()
     pageLoader.disable()
   }

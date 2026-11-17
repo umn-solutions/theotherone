@@ -1,19 +1,20 @@
 import { Container, Text, SiteApi } from '../../../libs/nofbiz/nofbiz.base.js'
 import { renderSVG } from '../../../libs/uqr.js'
 import { getUserDisplayName, getLocationValue } from '../../../utils/user-helpers.js'
-import { LIST_EXTERNAL_ITEMS, APP_NAME } from '../../../utils/constants.js'
+import { LIST_EXTERNAL_ITEMS, APP_NAME, EXTERNAL_TRACKING_ID_LABEL } from '../../../utils/constants.js'
 import { printInMode } from '../../../utils/print-mode.js'
 
 /**
- * Printable "Mail Order" handover document for an off-platform (subsidiary)
- * delivery. Generated when a tracked collection moves `arrived`/`in transit` ->
- * `awaiting signature`: the middleman courier carries this with the parcel and
- * returns it signed; scanning its QR (which encodes the tracking number, same as
- * the parcel label) later drives the final `delivered` transition. The signed
- * paper is archived outside the platform.
+ * Printable "Proof of Delivery" handover document for a subsidiary delivery.
+ * Generated when a tracked collection moves arrived/in transit to awaiting
+ * signature: the middleman courier carries this with the parcel and returns it
+ * signed; scanning its QR (which encodes the tracking number, same as the parcel
+ * label) later drives the final delivered transition. The signed paper is
+ * archived outside the platform.
  *
  * The document lists every item in the collection and is designed to paginate
- * across A4 pages (each item row avoids breaking; orders start on a fresh page).
+ * across A4 pages (each item row avoids breaking; documents start on a fresh
+ * page).
  *
  * @param {object} pkg      Collection header record
  * @param {object[]} items  Line items (from ExternalMailItems) for this collection
@@ -29,7 +30,7 @@ export function createSignatureDocCard(pkg, items) {
   const header = new Container([
     new Container([
       new Text(`Facilities Services - ${APP_NAME}`, { type: 'p', class: 'sig-doc__brand' }),
-      new Text(`Mail Order #${tracking}`, { type: 'h1', class: 'sig-doc__order-title' }),
+      new Text(`Proof of Delivery #${tracking}`, { type: 'h1', class: 'sig-doc__order-title' }),
       new Text(`Recipient: ${getUserDisplayName(pkg.Recipient)}`, { type: 'p', class: 'sig-doc__detail' }),
       new Text(`Destination: ${getLocationValue(pkg.DestinationLocation)}`, { type: 'p', class: 'sig-doc__detail' }),
       new Text(`Items: ${items.length}`, { type: 'p', class: 'sig-doc__detail' }),
@@ -42,7 +43,7 @@ export function createSignatureDocCard(pkg, items) {
     new Text('Category', { type: 'span' }),
     new Text('Description', { type: 'span' }),
     new Text('From', { type: 'span' }),
-    new Text('Ext. Tracking ID', { type: 'span' }),
+    new Text(EXTERNAL_TRACKING_ID_LABEL, { type: 'span' }),
   ], { class: 'sig-doc__item-head' })
 
   const rows = items.map((it, i) => new Container([
@@ -54,7 +55,7 @@ export function createSignatureDocCard(pkg, items) {
   ], { class: 'sig-doc__item-row' }))
 
   const emptyNote = items.length === 0
-    ? [new Text('No items recorded for this order.', { type: 'p', class: 'sig-doc__detail' })]
+    ? [new Text('No items recorded for this collection.', { type: 'p', class: 'sig-doc__detail' })]
     : []
 
   const list = new Container([itemHead, ...rows, ...emptyNote], { class: 'sig-doc__items' })
@@ -76,8 +77,9 @@ export function createSignatureDocCard(pkg, items) {
 }
 
 /**
- * Load each collection's items, render one Mail Order document per collection into
- * the hidden print container, and trigger the browser print dialog at A4.
+ * Load each collection's items, render one Proof of Delivery document per
+ * collection into the hidden print container, and trigger the browser print
+ * dialog at A4.
  *
  * @param {object|object[]} pkgs   One collection header or an array of them
  * @param {object} printContainer  SPARC Container with class mail-labels__print-container
@@ -106,6 +108,6 @@ export async function printSignatureDoc(pkgs, printContainer) {
   await printInMode({
     bodyClass: 'posthub--print-doc',
     pageCss: '@page { size: A4; margin: 12mm }',
-    title: `Mail Order -- ${list.map((p) => p.Title).join(', ')}`,
+    title: `Proof of Delivery: ${list.map((p) => p.Title).join(', ')}`,
   })
 }

@@ -8,6 +8,7 @@ import {
 
 import { createNavbar } from "../../components/navbar.js";
 import { isFacilitiesAdmin, guardAccess } from "../../utils/access.js";
+import { PAGE_DESCRIPTIONS } from "../../utils/copy.js";
 
 export default defineRoute(async (config) => {
 	config.setRouteTitle("Facilities");
@@ -33,7 +34,7 @@ export default defineRoute(async (config) => {
 				],
 				{ class: "posthub__title-with-icon" },
 			),
-			new Text("Manage mail processing and tracking", {
+			new Text("Process, track and report on all mail.", {
 				type: "p",
 				class: "posthub__page-subtitle",
 			}),
@@ -55,17 +56,17 @@ export default defineRoute(async (config) => {
 	const cards = [
 		featureCard(
 			"Internal Mail",
-			"Register, dispatch, receive, and deliver mail with guided workflows",
+			PAGE_DESCRIPTIONS.internalMail,
 			"facilities/internal-mail",
 		),
 		featureCard(
 			"External Mail",
-			"Manage external incoming and outgoing mail",
+			PAGE_DESCRIPTIONS.externalMail,
 			"facilities/external-mail",
 		),
 		featureCard(
 			"Reports",
-			"View mail analytics and reports",
+			PAGE_DESCRIPTIONS.reports,
 			"facilities/reports",
 		),
 	];
@@ -75,17 +76,17 @@ export default defineRoute(async (config) => {
 		cards.push(
 			featureCard(
 				"Manage Locations",
-				"Enable or disable delivery locations",
+				PAGE_DESCRIPTIONS.manageLocations,
 				"facilities/manage-locations",
 			),
 			featureCard(
 				"Maintenance",
-				"Run admin workflows and database cleanup actions",
+				PAGE_DESCRIPTIONS.maintenance,
 				"facilities/maintenance",
 			),
 			featureCard(
 				"External Mail Config",
-				"Manage categories, subcategories, and external sources for external mail forms",
+				PAGE_DESCRIPTIONS.externalConfig,
 				"facilities/external-mail/config",
 			),
 		);

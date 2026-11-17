@@ -14,9 +14,11 @@ import { createNavbar } from '../../../../components/navbar.js'
 import { createChartCard } from '../../../../components/chartCard.js'
 import { createPageHeader } from '../../../../components/pageHeader.js'
 import { LIST_LOCATIONS, APP_NAME } from '../../../../utils/constants.js'
+import { TOOLTIPS } from '../../../../utils/copy.js'
+import { createTextWithTooltip } from '../../../../utils/tooltip.js'
 import { printInMode } from '../../../../utils/print-mode.js'
 import { currentMonthKey, monthLabel, recentMonths } from './report-data.js'
-import { downloadWorkbook } from './report-export.js'
+import { downloadWorkbook } from '../../../../utils/workbook-export.js'
 
 export const REPORTS_PATH = 'facilities/reports'
 
@@ -27,7 +29,7 @@ export async function loadActiveLocationTitles(siteApi) {
     return locations.map(l => l.Title)
   } catch (err) {
     console.error('[Reports] failed to load locations', err)
-    Toast.error('Failed to load locations')
+    Toast.error('Could not load locations. Refresh to try again.')
     return []
   }
 }
@@ -102,7 +104,7 @@ export function createReportDashboard(config, spec) {
 
   const { header, subtitle } = createPageHeader({
     title: spec.title,
-    subtitle: `${spec.subtitle} -- ${monthLabel(state.monthKey)}`,
+    subtitle: `${monthLabel(state.monthKey)}: ${spec.subtitle}`,
     backPath: REPORTS_PATH,
   })
 
@@ -117,6 +119,7 @@ export function createReportDashboard(config, spec) {
       cards[c.key] = createChartCard({
         title: c.title,
         subtitle: c.subtitle,
+        ...(c.tooltip ? { tooltip: c.tooltip } : {}),
         ...(c.scroll ? { class: 'reports__card--scroll' } : {}),
       })
       return cards[c.key].card
@@ -210,8 +213,8 @@ export function createReportDashboard(config, spec) {
     }
   }
 
-  const summaryButton = new Button('Summary Report', { onClickHandler: printSummary })
-  const excelButton = new Button('Excel Report', { onClickHandler: exportExcel, variant: 'secondary', isOutlined: true })
+  const summaryButton = new Button('Print Summary', { onClickHandler: printSummary })
+  const excelButton = new Button('Download Excel', { onClickHandler: exportExcel, variant: 'secondary', isOutlined: true })
 
   // --- Data ---
 
@@ -230,11 +233,11 @@ export function createReportDashboard(config, spec) {
       }
       state.data = data
       state.monthKey = monthKey
-      subtitle.children = `${spec.subtitle} -- ${monthLabel(monthKey)}`
+      subtitle.children = `${monthLabel(monthKey)}: ${spec.subtitle}`
       loading.dismiss()
     } catch (err) {
       console.error('[Reports.fetchMonth] failed to load report data', { monthKey, err })
-      loading.error('Failed to load reports')
+      loading.error('Could not load reports. Try selecting a different month.')
       return
     }
     renderAll()
@@ -267,18 +270,18 @@ export function createReportDashboard(config, spec) {
       new Text(heading, { type: 'p', class: 'posthub__section-heading' }),
       ...children,
     ], { class: 'reports__filter-section' })
-    const field = (label, control) => new Container([
-      new Text(label, { type: 'label', class: 'posthub__filter-label' }),
+    const field = (label, control, tooltip) => new Container([
+      createTextWithTooltip(label, tooltip, { type: 'label', class: 'posthub__filter-label' }),
       control,
     ], { class: 'posthub__filter-group' })
 
     filterSection.children = [
       section('Filters', [
         field('Month', monthCombo),
-        field(`${spec.filterLabel} (${spec.filterHint.toLowerCase()})`, officeCombo),
+        field(`${spec.filterLabel} (${spec.filterHint.toLowerCase()})`, officeCombo, TOOLTIPS.reports.officeFilter),
       ]),
       section('Export', [
-        new Text('Uses the selected month and filter', { type: 'p', class: 'reports__filter-hint' }),
+        new Text('Uses the selected month and filter', { type: 'p', class: 'posthub__filter-hint' }),
         new Container([summaryButton, excelButton], { class: 'reports__filter-actions' }),
       ]),
     ]

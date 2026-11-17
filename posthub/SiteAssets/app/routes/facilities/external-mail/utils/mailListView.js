@@ -3,7 +3,6 @@ import {
   Text,
   Button,
   LinkButton,
-  ComboBox,
   CheckBox,
   TextInput,
   FieldLabel,
@@ -17,60 +16,45 @@ import {
 import { createNavbar } from '../../../../components/navbar.js'
 import { createPackageDetailPanel } from '../../../../components/packageDetailPanel.js'
 import { createSearchPanelActions } from '../../utils/searchPanelActions.js'
-import { dataToXLSX, downloadFile } from '../../../../libs/nofbiz/nofbiz.excelparser.js'
+import { downloadWorkbook } from '../../../../utils/workbook-export.js'
+import {
+  categoriesText, recipientText, destinationText, receivedOnText,
+  externalMailRows, collectionItemRows,
+} from '../../utils/mail-export-rows.js'
 import { createPackageTable } from '../../../../utils/package-table.js'
 import {
   trackingIdColumn, statusBadgeColumn, currentLocationColumn, directionColumn,
 } from '../../../../utils/package-table-columns.js'
 import { createEmptyState } from '../../../../utils/empty-state.js'
-import { createPackageFilters } from '../../../../utils/package-filters.js'
-import { extractSelection } from '../../../../utils/filter-helpers.js'
+import { createPackageFilters, createMultiSelectFilter, filterGroup, findMailHint } from '../../../../utils/package-filters.js'
+import { normalizeSearchText } from '../../../../utils/filter-helpers.js'
 import { defaultDateFrom, defaultDateTo, parseFilterDate } from '../../../../utils/date-helpers.js'
-import { getLocationValue, getUserDisplayName } from '../../../../utils/user-helpers.js'
-import { LIST_EXTERNAL_PACKAGES, LIST_EXTERNAL_LOG, MAIL_DIRECTIONS, DIRECTION_LABELS } from '../../../../utils/constants.js'
-import { fetchItemsAcrossLists, loadCategoryOptions, loadLocationOptions, loadExternalItemIndex } from './external-data.js'
+import { getLocationValue } from '../../../../utils/user-helpers.js'
+import {
+  LIST_EXTERNAL_PACKAGES, LIST_EXTERNAL_LOG, MAIL_DIRECTIONS, DIRECTION_LABELS, EXTERNAL_TRACKING_ID_LABEL,
+} from '../../../../utils/constants.js'
+import { fetchItemsAcrossLists, loadCategoryOptions, loadLocationOptions, loadGroupedExternalItems } from './external-data.js'
+import { pluralize, TOOLTIPS } from '../../../../utils/copy.js'
 
-// Field accessors that work for tracked headers AND untracked log rows. Log rows
-// lack Recipient / DestinationLocation / SubmissionDate, so derive them from the
-// log's direction-aware party + office + Created. Shared by the table columns and
-// the XLSX export.
-const isLogRow = (pkg) => pkg.__listName === LIST_EXTERNAL_LOG
+// Field accessors (tracked headers AND log rows) are shared with the exports.
 const cell = (val) => new Text(val || '--', { type: 'span', class: 'posthub__table-cell' })
-
-const categoriesText = (pkg) =>
-  Array.isArray(pkg.Categories) ? pkg.Categories.join(', ') : (pkg.Category || '')
-
-const recipientText = (pkg) => (isLogRow(pkg)
-  ? (pkg.Direction === MAIL_DIRECTIONS.OUTGOING ? pkg.ExternalParty : getUserDisplayName(pkg.InternalContact))
-  : getUserDisplayName(pkg.Recipient)) || ''
-
-const destinationText = (pkg) => (isLogRow(pkg)
-  ? (pkg.Direction === MAIL_DIRECTIONS.OUTGOING ? pkg.ExternalParty : getLocationValue(pkg.InternalOffice))
-  : getLocationValue(pkg.DestinationLocation)) || ''
-
-const receivedOnText = (pkg) => {
-  const d = pkg.SubmissionDate || pkg.Created
-  return d ? __dayjs(d).format('DD/MM/YYYY') : ''
-}
 
 const categoryColumn = () => ({ label: 'Category', render: (pkg) => cell(categoriesText(pkg)) })
 const recipientColumn = () => ({ label: 'Recipient', render: (pkg) => cell(recipientText(pkg)) })
 const destinationColumn = () => ({ label: 'Destination', render: (pkg) => cell(destinationText(pkg)) })
 const receivedOnColumn = () => ({ label: 'Received On', render: (pkg) => cell(receivedOnText(pkg)) })
 
-// Flattens tracked + log rows into one sheet shape for the XLSX export.
-const toExportRows = (packages) => packages.map((pkg) => ({
-  'Tracking ID': pkg.Title,
-  'Type': isLogRow(pkg) ? 'Logged' : 'Tracked',
-  'Status': pkg.Status || '',
-  'Direction': pkg.Direction ? (DIRECTION_LABELS[pkg.Direction] || pkg.Direction) : '',
-  'Category': categoriesText(pkg),
-  'Destination': destinationText(pkg),
-  'Recipient': recipientText(pkg),
-  'Quantity': pkg.Quantity || '',
-  'Details': pkg.PackageDetails || pkg.Description || '',
-  'Received On': receivedOnText(pkg),
-}))
+/** Build a text-search index from grouped items for the External Tracking ID filter. */
+function buildItemTrackingIndex(groups) {
+  const idx = new Map()
+  for (const [title, items] of groups) {
+    const ids = items
+      .map((it) => normalizeSearchText(it.ExternalTrackingId))
+      .filter(Boolean)
+    if (ids.length) idx.set(title, ids)
+  }
+  return idx
+}
 
 /**
  * Shared list view for the two external tracked lists (tracked + registered),
@@ -128,8 +112,9 @@ export async function createExternalMailListView(config, {
 
   let allItems = []
   let filtered = []
-  // Map<headerTrackingNumber, lowercased per-item external tracking ids[]> --
-  // powers the "Item Tracking ID" filter (match a collection by any item's carrier id).
+  // Map<headerTrackingNumber, item[]> -- full item objects for search + export.
+  let groupedItems = new Map()
+  // Map<headerTrackingNumber, normalizedId[]> -- derived search index.
   let itemIndex = new Map()
 
   const { show: showDetailPanel } = createPackageDetailPanel({
@@ -157,22 +142,26 @@ export async function createExternalMailListView(config, {
 
     filtered = allItems.filter((pkg) => {
       if (!filters.mailTypes.includes(pkg.__listName)) return false
-      // When tracking is active, the search is global -- skip the date-range
-      // client check so out-of-range matches remain visible.
-      if (!filters.tracking) {
+      // When a tracking-based search is active (header or item), the lookup is
+      // global -- skip the date-range client check so out-of-range matches remain
+      // visible. Without this, older collections are silently filtered out.
+      if (!filters.tracking && !filters.itemTrackingId) {
         const dateToCheck = pkg.SubmissionDate || pkg.Created
         if (dateToCheck) {
           if (fromDate && __dayjs(dateToCheck).isBefore(fromDate, 'day')) return false
           if (toDate && __dayjs(dateToCheck).isAfter(toDate, 'day')) return false
         }
       }
-      if (filters.tracking && !pkg.Title.toLowerCase().includes(filters.tracking)) return false
+      if (filters.tracking && !String(pkg.Title ?? '').toLowerCase().includes(filters.tracking)) return false
       if (filters.itemTrackingId) {
         // Match the collection if any of its line items' external carrier ids
         // contains the query. Only tracked collections are indexed; log rows
         // have no items so they never match (correct -- they carry no carrier id).
-        const ids = itemIndex.get(pkg.Title)
-        if (!ids || !ids.some((id) => id.includes(filters.itemTrackingId))) return false
+        // Also check header-level ExternalTrackingId (legacy headers may have it).
+        const ids = itemIndex.get(String(pkg.Title ?? ''))
+        const matchItems = ids && ids.some((id) => id.includes(filters.itemTrackingId))
+        const matchHeader = normalizeSearchText(pkg.ExternalTrackingId).includes(filters.itemTrackingId)
+        if (!matchItems && !matchHeader) return false
       }
       if (filters.senderEmail && pkg.SenderEmail !== filters.senderEmail) return false
       if (filters.recipientEmail && pkg.RecipientEmail !== filters.recipientEmail) return false
@@ -196,7 +185,7 @@ export async function createExternalMailListView(config, {
       resultsContainer.children = [createEmptyState(emptyTitle, emptyBody)]
       return
     }
-    const resultCount = new Text(`${filtered.length} mail item(s)`, {
+    const resultCount = new Text(pluralize(filtered.length, 'result'), {
       type: 'p',
       class: `${classPrefix}__result-count`,
     })
@@ -215,35 +204,24 @@ export async function createExternalMailListView(config, {
     loadLocationOptions(siteApi),
   ])
 
-  const categoryField = new FormField({ value: [] })
-  const categoryComboBox = new ComboBox(categoryField, categoryOptions, {
-    allowMultiple: true,
-    allowFiltering: true,
-    allowCreate: false,
+  const { group: categoryGroup, comboBox: categoryComboBox } = createMultiSelectFilter({
+    label: 'Category',
+    options: categoryOptions,
     placeholder: 'Select category...',
-    onSelectHandler: (selection) => { filters.category = extractSelection(selection); applyFilters() },
+    onChange: (values) => { filters.category = values; applyFilters() },
   })
-  const categoryGroup = new Container([
-    new Text('Category', { type: 'label', class: 'posthub__filter-label' }),
-    categoryComboBox,
-  ], { class: 'posthub__filter-group' })
 
   const directionOptions = [
     { label: DIRECTION_LABELS[MAIL_DIRECTIONS.INCOMING], value: MAIL_DIRECTIONS.INCOMING },
     { label: DIRECTION_LABELS[MAIL_DIRECTIONS.OUTGOING], value: MAIL_DIRECTIONS.OUTGOING },
   ]
-  const directionField = new FormField({ value: [] })
-  const directionComboBox = new ComboBox(directionField, directionOptions, {
-    allowMultiple: true,
-    allowFiltering: false,
-    allowCreate: false,
+  const { group: directionGroup, comboBox: directionComboBox } = createMultiSelectFilter({
+    label: 'Direction',
+    options: directionOptions,
     placeholder: 'Select direction...',
-    onSelectHandler: (selection) => { filters.direction = extractSelection(selection); applyFilters() },
+    allowFiltering: false,
+    onChange: (values) => { filters.direction = values; applyFilters() },
   })
-  const directionGroup = new Container([
-    new Text('Direction', { type: 'label', class: 'posthub__filter-label' }),
-    directionComboBox,
-  ], { class: 'posthub__filter-group' })
 
   // Item (carrier) tracking id. TextInput debounces value-sync into its FormField;
   // subscribing fires post-debounce (same pattern as the header Tracking Number).
@@ -254,13 +232,10 @@ export async function createExternalMailListView(config, {
     debounceMs: ITEM_ID_DEBOUNCE_MS,
   })
   itemIdField.subscribe(() => {
-    filters.itemTrackingId = (itemIdField.value || '').trim().toLowerCase()
+    filters.itemTrackingId = normalizeSearchText(itemIdField.value)
     applyFilters()
   })
-  const itemIdGroup = new Container([
-    new Text('Item Tracking ID', { type: 'label', class: 'posthub__filter-label' }),
-    itemIdInput,
-  ], { class: 'posthub__filter-group' })
+  const itemIdGroup = filterGroup(EXTERNAL_TRACKING_ID_LABEL, itemIdInput, { tooltip: TOOLTIPS.filters.carrierTrackingNumber })
 
   // Single toggle: untracked (logged) mail is hidden by default; checking it adds
   // the log list to the shown set. Tracked mail is always shown.
@@ -271,18 +246,24 @@ export async function createExternalMailListView(config, {
   })
   const showUntrackedCheck = new CheckBox(showUntrackedField)
   const typeGroup = new Container([
-    new FieldLabel('Show items without tracking', showUntrackedCheck, { position: 'right' }),
-  ], { class: `posthub__filter-group ${classPrefix}__type-filter` })
+    new FieldLabel('Include logged (untracked) mail', showUntrackedCheck, { position: 'right', tooltip: TOOLTIPS.externalForms.includeLogged }),
+  ], { class: `posthub__filter-group posthub__checkbox-option ${classPrefix}__type-filter` })
 
   // Build the shared filter grid, appending external-only groups so every filter
   // flows uniformly in the same top bar (internal + external share this structure).
   const { filterGrid, buttonRowSlot, clearAll } = createPackageFilters({
     filters,
     locationOptions,
-    options: { includeTracking: true },
+    options: {
+      includeTracking: true,
+      searchHint: findMailHint(`a tracking number or ${EXTERNAL_TRACKING_ID_LABEL.toLowerCase()}`),
+      periodLabel: 'Received Between',
+      periodTooltip: TOOLTIPS.filters.receivedBetween,
+    },
     onFilterChange: applyFilters,
     onDateChange: () => applyFilters(),
-    extraGroups: [categoryGroup, directionGroup, itemIdGroup, typeGroup],
+    searchGroups: [itemIdGroup],
+    extraGroups: [categoryGroup, directionGroup, typeGroup],
   })
 
   const clearButton = new Button('Clear Filters', {
@@ -318,18 +299,15 @@ export async function createExternalMailListView(config, {
         }
         exportButton.isLoading = true
         try {
-          const buffer = await dataToXLSX(toExportRows(filtered), {
-            sheetName: 'External Mail',
-            columnWidths: {
-              'Tracking ID': 24, 'Type': 10, 'Status': 16, 'Direction': 12,
-              'Category': 22, 'Destination': 22, 'Recipient': 24, 'Quantity': 10,
-              'Details': 30, 'Received On': 14,
-            },
-          })
-          downloadFile(buffer, `posthub-external-mail-${__dayjs().format('YYYYMMDD-HHmmss')}.xlsx`)
+          const headerRows = externalMailRows(filtered, groupedItems)
+          const itemRows = collectionItemRows(filtered, groupedItems, filters)
+          await downloadWorkbook([
+            { name: 'External Mail', rows: headerRows },
+            { name: 'Collection Items', rows: itemRows },
+          ], `posthub-external-mail-${__dayjs().format('YYYYMMDD-HHmmss')}.xlsx`)
         } catch (err) {
           console.error('[external-search] export failed', err)
-          Toast.error('Export failed')
+          Toast.error('Could not export. Please try again.')
         } finally {
           exportButton.isLoading = false
         }
@@ -358,10 +336,11 @@ export async function createExternalMailListView(config, {
   // Initial state: loading, then fetch all three lists and render
   resultsContainer.children = [createEmptyState('Loading...', 'Fetching external mail.')]
 
-  ;[allItems, itemIndex] = await Promise.all([
+  ;[allItems, groupedItems] = await Promise.all([
     fetchItemsAcrossLists(siteApi, TRACKED_LISTS),
-    loadExternalItemIndex(siteApi),
+    loadGroupedExternalItems(siteApi),
   ])
+  itemIndex = buildItemTrackingIndex(groupedItems)
   applyFilters()
 
   return [navbar, contentArea, deleteDialog]

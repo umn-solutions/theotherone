@@ -11,9 +11,11 @@ import {
   Toast,
 } from '../../../../libs/nofbiz/nofbiz.base.js'
 
+import { TOOLTIPS } from '../../../../utils/copy.js'
+
 /**
  * Builds a self-contained CRUD manager for a simple {Title, IsActive} option list
- * (Categories / Subcategories / External Sources), rendered as a tab: a new-item control
+ * (Categories / Subcategories / External Parties), rendered as a tab: a new-item control
  * on top and a scrollable flex-column list of options below. Titles are unique
  * (case-insensitive). Mirrors the Manage Locations activate/deactivate + delete flow.
  *
@@ -93,8 +95,8 @@ export function createConfigListManager(siteApi, { listName, singular, plural, k
   function renderList() {
     if (items.length === 0) {
       const msg = parent && !selectedParent
-        ? `Select a ${(parent.label || 'parent').toLowerCase()} to manage its ${plural.toLowerCase()}`
-        : `No ${plural.toLowerCase()} yet`
+        ? `Select a ${(parent.label || 'parent').toLowerCase()} to manage its ${plural.toLowerCase()}.`
+        : `No ${plural.toLowerCase()} yet. Add the first one above.`
       list.children = [new Text(msg, { type: 'p', class: 'external-mail-config__empty' })]
       return
     }
@@ -105,6 +107,7 @@ export function createConfigListManager(siteApi, { listName, singular, plural, k
         const active = isActive(it)
         const toggleBtn = new Button(active ? 'Active' : 'Inactive', {
           onClickHandler: () => handleToggle(it, toggleBtn),
+          title: TOOLTIPS.config.active,
           class: `external-mail-config__toggle-btn ${active ? 'external-mail-config__toggle-btn--active' : 'external-mail-config__toggle-btn--inactive'}`,
         })
         const deleteBtn = new Button(getIcon('delete-bin-line'), {
@@ -130,7 +133,7 @@ export function createConfigListManager(siteApi, { listName, singular, plural, k
         : await siteApi.list(listName).getItems()
     } catch (err) {
       console.error('[config] failed to load ' + listName, err)
-      Toast.error(`Failed to load ${plural.toLowerCase()}`)
+      Toast.error(`Could not load ${plural.toLowerCase()}. Refresh to try again.`)
       items = []
     }
     renderList()
@@ -164,7 +167,7 @@ export function createConfigListManager(siteApi, { listName, singular, plural, k
       loading.success(`${singular} added`)
     } catch (err) {
       console.error('[config] add failed', err)
-      loading.error(`Failed to add ${singular.toLowerCase()}`)
+      loading.error(`Could not add ${singular.toLowerCase()}. Please try again.`)
     } finally {
       addBtn.isLoading = false
     }
@@ -180,7 +183,7 @@ export function createConfigListManager(siteApi, { listName, singular, plural, k
       loading.success(`${singular} ${wasActive ? 'deactivated' : 'activated'}`)
     } catch (err) {
       console.error('[config] toggle failed', err)
-      loading.error('Failed to update')
+      loading.error('Could not update. Please try again.')
     } finally {
       btn.isLoading = false
     }
@@ -188,7 +191,7 @@ export function createConfigListManager(siteApi, { listName, singular, plural, k
 
   function openDelete(it) {
     if (isActive(it)) {
-      Toast.warning(`Deactivate the ${singular.toLowerCase()} before deleting`)
+      Toast.warning('Deactivate it first. Only inactive entries can be deleted.')
       return
     }
     pendingDelete = it
@@ -207,7 +210,7 @@ export function createConfigListManager(siteApi, { listName, singular, plural, k
       deleteModal.close()
     } catch (err) {
       console.error('[config] delete failed', err)
-      loading.error('Failed to delete')
+      loading.error('Could not delete. Please try again.')
     } finally {
       confirmDeleteBtn.isLoading = false
       pendingDelete = null

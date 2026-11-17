@@ -16,6 +16,7 @@ import {
 
 import { createNavbar } from '../../../components/navbar.js'
 import { LIST_LOCATIONS } from '../../../utils/constants.js'
+import { PAGE_DESCRIPTIONS, TOOLTIPS } from '../../../utils/copy.js'
 import { guardAccess } from '../../../utils/access.js'
 
 export default defineRoute(async (config) => {
@@ -32,7 +33,7 @@ export default defineRoute(async (config) => {
     locations = await siteApi.list(LIST_LOCATIONS).getItems()
   } catch (err) {
     console.error('[manage-locations] failed to load locations', err)
-    Toast.error('Failed to load locations')
+    Toast.error('Could not load locations. Refresh to try again.')
   }
 
   // Navbar
@@ -49,7 +50,7 @@ export default defineRoute(async (config) => {
         class: 'posthub__page-title'
       }),
     ], { class: 'posthub__title-with-icon' }),
-    new Text('Enable or disable delivery locations', {
+    new Text(PAGE_DESCRIPTIONS.manageLocations, {
       type: 'p',
       class: 'posthub__page-subtitle'
     }),
@@ -102,7 +103,7 @@ export default defineRoute(async (config) => {
 
   const modalContent = new Container([
     new FieldLabel('City', cityCombo, { class: 'manage-locations__modal-field' }),
-    new FieldLabel('Office Name', officeInput, { class: 'manage-locations__modal-field' }),
+    new FieldLabel('Office Name', officeInput, { class: 'manage-locations__modal-field', tooltip: TOOLTIPS.config.officeName }),
     new Container([cancelBtn, createBtn], { class: 'manage-locations__modal-actions' }),
   ], { class: 'manage-locations__modal-form' })
 
@@ -157,7 +158,7 @@ export default defineRoute(async (config) => {
       renderFilteredCards()
     } catch (err) {
       console.error('[manage-locations] create failed', err)
-      loading.error('Failed to create location')
+      loading.error('Could not create location. Try again.')
     } finally {
       createBtn.isLoading = false
     }
@@ -195,7 +196,7 @@ export default defineRoute(async (config) => {
 
   function openDeleteModal(loc) {
     if (isActive(loc)) {
-      Toast.warning('Deactivate the location before deleting')
+      Toast.warning('Deactivate it first. Only inactive entries can be deleted.')
       return
     }
     pendingDeleteLoc = loc
@@ -217,7 +218,7 @@ export default defineRoute(async (config) => {
       renderFilteredCards()
     } catch (err) {
       console.error('[manage-locations] delete failed', err)
-      loading.error('Failed to delete location')
+      loading.error('Could not delete location. Try again.')
     } finally {
       confirmDeleteBtn.isLoading = false
       pendingDeleteLoc = null
@@ -253,6 +254,7 @@ export default defineRoute(async (config) => {
       const toggleBtn = new Button(active ? 'Active' : 'Inactive', {
         onClickHandler: () => handleToggle(loc, toggleBtn),
         class: `manage-locations__toggle-btn ${statusClass}`,
+        title: TOOLTIPS.config.active,
       })
 
       const deleteBtn = new Button(getIcon('delete-bin-line'), {
@@ -278,7 +280,7 @@ export default defineRoute(async (config) => {
 
     // Guard: at least one location must remain active
     if (wasActive && locations.filter(isActive).length <= 1) {
-      Toast.warning('At least one location must remain active')
+      Toast.warning('At least one office must stay active.')
       return
     }
 
@@ -297,7 +299,7 @@ export default defineRoute(async (config) => {
       renderFilteredCards()
     } catch (err) {
       console.error('[manage-locations] toggle failed', err)
-      loading.error('Failed to update location')
+      loading.error('Could not update location. Try again.')
     } finally {
       toggleBtn.isLoading = false
     }

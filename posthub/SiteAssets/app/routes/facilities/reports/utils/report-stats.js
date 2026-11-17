@@ -1,6 +1,7 @@
 import { __dayjs } from '../../../../libs/nofbiz/nofbiz.base.js'
 import { PACKAGE_STATUSES, STATUS_LABELS, BUILDING_PALETTE } from '../../../../utils/constants.js'
 import { getLocationValue } from '../../../../utils/user-helpers.js'
+import { TOOLTIPS } from '../../../../utils/copy.js'
 
 /**
  * Pure aggregation helpers shared by the reports summary and both detail
@@ -199,7 +200,7 @@ export function weeklySeries(records, monthStart, groups, { groupOf, weightOf = 
 
 // --- Delta chips (vs previous month) ---
 
-const DELTA_TITLE = 'vs previous month'
+const DELTA_TITLE = TOOLTIPS.reports.delta
 const fmtSignedPct = (p) => `${p > 0 ? '+' : ''}${p.toFixed(1)}%`
 
 /** Relative change chip; `goodDir` says which direction is positive. */

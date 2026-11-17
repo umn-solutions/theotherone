@@ -31,10 +31,13 @@ import {
   loadLocationOptions,
   loadSubcategoryMap,
   createCategoryCombos,
+  createPartyCombo,
   comboVal,
   makeSequentialId,
 } from './external-data.js'
 import { cleanText, cleanLine, tooLongMessage, notifyRemovedChars } from '../../../../utils/text-field.js'
+import { pluralize, TOOLTIPS } from '../../../../utils/copy.js'
+import { createTextWithTooltip } from '../../../../utils/tooltip.js'
 
 /**
  * Shared builder for the untracked external-mail LOG forms (incoming-untracked and
@@ -118,9 +121,9 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
   const gridHeader = new Container([
     new Text('Category', { type: 'span', class: 'external-mail-bulk__grid-label' }),
     new Text('Subcategory', { type: 'span', class: 'external-mail-bulk__grid-label' }),
-    new Text('Quantity', { type: 'span', class: 'external-mail-bulk__grid-label' }),
+    createTextWithTooltip('Quantity', TOOLTIPS.externalForms.quantity, { type: 'span', class: 'external-mail-bulk__grid-label' }),
     new Text('Description', { type: 'span', class: 'external-mail-bulk__grid-label' }),
-    new Text(`${externalRole} (external)`, { type: 'span', class: 'external-mail-bulk__grid-label' }),
+    createTextWithTooltip(`${externalRole} (External)`, TOOLTIPS.externalForms.externalParty, { type: 'span', class: 'external-mail-bulk__grid-label' }),
     new Text('', { type: 'span', class: 'external-mail-bulk__grid-label' }),
   ], { class: 'external-mail-bulk__grid-header' })
 
@@ -129,13 +132,10 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
   function renderGrid() {
     gridBody.children = rows.map((row) => {
       const [categoryCombo, subCombo] = createCategoryCombos(row, categoryOptions, subcategoryMap)
-      const quantityInput = new NumberInput(row.quantity, { min: 1, max: 99999, step: 5, placeholder: 'Qty' })
+      const quantityInput = new NumberInput(row.quantity, { min: 1, max: 99999, step: 5, placeholder: 'Quantity' })
       const descInput = new TextInput(row.description, { placeholder: 'Description' })
       // External party: free-create combo (external orgs are open-ended).
-      const externalCombo = new ComboBox(row.external, partyOptions, {
-        allowMultiple: false,
-        allowFiltering: true,
-        allowCreate: true,
+      const externalCombo = createPartyCombo(row.external, partyOptions, {
         placeholder: `${externalRole}...`,
       })
       const removeBtn = new Button(getIcon('close-line'), {
@@ -176,7 +176,7 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
     },
   })
 
-  const submitBtn = new Button('Submit All', {
+  const submitBtn = new Button('Log Items', {
     variant: 'primary',
     onClickHandler: async () => {
       const rawContact = contactField.value?.value ?? null
@@ -203,7 +203,7 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
         .find(Boolean)
       if (lengthError) { Toast.error(lengthError); return }
       notifyRemovedChars({
-        'Collection Notes': notesField.value,
+        'Notes': notesField.value,
         ...Object.assign({}, ...filled.map((row, i) => ({
           [`Item ${i + 1}: Description`]: row.description.value,
           [`Item ${i + 1}: ${externalRole}`]: comboVal(row.external.value),
@@ -212,10 +212,10 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
 
       submitBtn.isLoading = true
       pageLoader.toggleLoader()
-      const loading = Toast.loading(`Logging ${filled.length} item(s)...`)
+      const loading = Toast.loading(`Logging ${pluralize(filled.length, 'item')}...`)
       const registeredBy = user.get('email') || ''
-      // One BatchId per "Submit All" groups every row of this submission so the
-      // detail panel can list all items registered together (the "collection").
+      // One BatchId per "Log Items" groups every row of this submission so the
+      // detail panel can list all items registered together (the log batch).
       const batchId = makeSequentialId(BULK_BATCH_PREFIX)
       // Collection-level notes, same on every row of this batch.
       const collectionNotes = cleanText(notesField.value)
@@ -235,12 +235,12 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
             CollectionNotes: collectionNotes,
           })
         }
-        loading.success(`${filled.length} item(s) logged`)
+        loading.success(`${pluralize(filled.length, 'item')} logged`)
         rows = freshRows()
         renderGrid()
       } catch (err) {
         console.error('[register-log] createItem failed', err)
-        loading.error('Failed to log some items')
+        loading.error('Could not log some items. Please try again.')
       } finally {
         submitBtn.isLoading = false
         pageLoader.toggleLoader()
@@ -256,8 +256,8 @@ export async function createLogForm(config, { direction, title, subtitle, backPa
       new Text(`${isIncoming ? 'Incoming' : 'Outgoing'} Mail Details`, { type: 'span', class: 'external-mail-form__form-title' }),
     ], { class: 'external-mail-form__form-header' }),
     new FieldLabel(`${internalRole} (internal)`, contactPicker, { class: 'external-mail-form__form-group' }),
-    new FieldLabel('Office', officeComboBox, { class: 'external-mail-form__form-group' }),
-    new FieldLabel('Collection Notes (optional)', notesTextArea, { class: 'external-mail-form__form-group' }),
+    new FieldLabel('Office', officeComboBox, { class: 'external-mail-form__form-group', tooltip: TOOLTIPS.externalForms.logOffice }),
+    new FieldLabel('Notes (optional)', notesTextArea, { class: 'external-mail-form__form-group' }),
   ], { class: 'external-mail-form__form-content' })
   const headerSection = new Container([headerCard], { class: 'external-mail-form__form-section' })
 

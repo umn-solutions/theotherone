@@ -2,6 +2,7 @@ import { sendEmail, __dayjs, SiteApi, CurrentUser, UserIdentity, escapeHtml, Toa
 import {
   LIST_PACKAGES, LIST_TIMELINE_ENTRIES, LIST_EXTERNAL_ITEMS, LIST_EXTERNAL_PACKAGES,
   TIMELINE_EVENT_CHASE, TIMELINE_EVENT_ARRIVAL_NOTICE, TIMELINE_EVENT_REPRINT,
+  EXTERNAL_TRACKING_ID_LABEL,
 } from '../../../utils/constants.js'
 import { getUserEmail, getLocationValue } from '../../../utils/user-helpers.js'
 import { printQrLabel } from './qrLabelPrint.js'
@@ -55,17 +56,19 @@ export async function logTimelineEvent(pkg, event, notes = '') {
 
 /**
  * Detail-panel action that reprints a package's QR label and records it on the
- * timeline. Shared by the internal and external search routes.
+ * timeline. Shared by the internal and external search routes. Hidden for
+ * delivered mail: the workflow is complete, so there is nothing left to scan.
  *
  * @param {object} printContainer SPARC Container with class mail-labels__print-container
- * @returns {{ label: string, onClick: (pkg: object) => Promise<void> }}
+ * @returns {{ label: string, isVisible: (pkg: object) => boolean, onClick: (pkg: object) => Promise<void> }}
  */
 export function createReprintLabelAction(printContainer) {
   return {
     label: 'Reprint Label',
+    isVisible: (pkg) => pkg.Status !== 'delivered',
     onClick: (pkg) => {
       printQrLabel(pkg, printContainer)
-      return logTimelineEvent(pkg, TIMELINE_EVENT_REPRINT, 'Standard format')
+      return logTimelineEvent(pkg, TIMELINE_EVENT_REPRINT)
     },
   }
 }
@@ -108,10 +111,10 @@ async function sendRecipientEmail(pkg, { subject, message, event, eventNote }) {
             parts.push(`Category: ${cat}`)
           }
           if (item.FromParty) parts.push(`From: ${escapeHtml(item.FromParty)}`)
-          if (item.ExternalTrackingId) parts.push(`External Tracking ID: ${escapeHtml(item.ExternalTrackingId)}`)
+          if (item.ExternalTrackingId) parts.push(`${EXTERNAL_TRACKING_ID_LABEL}: ${escapeHtml(item.ExternalTrackingId)}`)
           return `<li><strong>Item ${i + 1}</strong>${parts.length ? ': ' + parts.join(' | ') : ''}</li>`
         }
-        itemsHtml = '<p>This package contains the following item(s):</p>'
+        itemsHtml = `<p>This collection contains ${items.length} ${items.length === 1 ? 'item' : 'items'}:</p>`
           + `<ul>${items.map(renderItemLi).join('')}</ul>`
       }
     } catch (err) {
@@ -134,12 +137,13 @@ async function sendRecipientEmail(pkg, { subject, message, event, eventNote }) {
  * @returns {Promise<import('../../../libs/nofbiz/nofbiz.base.js').SendEmailResult>}
  */
 export function sendChaseEmail(pkg) {
+  const office = escapeHtml(getLocationValue(pkg.CurrentLocation) || 'its destination office')
   const since = pkg.LastModifiedDate
     ? __dayjs(pkg.LastModifiedDate).format('DD/MM/YYYY')
     : 'recently'
   return sendRecipientEmail(pkg, {
-    subject: `Mail ready for pickup: ${pkg.Title}`,
-    message: `Your item ${escapeHtml(pkg.Title)} is ready for pickup since ${escapeHtml(since)}.`,
+    subject: `Reminder: your mail ${pkg.Title} is waiting for pickup`,
+    message: `Your mail ${escapeHtml(pkg.Title)} has been waiting for pickup at ${office} since ${escapeHtml(since)}.`,
     event: TIMELINE_EVENT_CHASE,
     eventNote: 'Pickup reminder emailed to',
   })
@@ -160,7 +164,7 @@ export async function notifyArrivals(results) {
 
   const outcomes = await Promise.allSettled(arrived.map((pkg) => sendRecipientEmail(pkg, {
     subject: `Mail arrived: ${pkg.Title}`,
-    message: `Your item ${escapeHtml(pkg.Title)} has arrived at ${escapeHtml(getLocationValue(pkg.CurrentLocation) || 'its destination office')} and is ready for pickup.`,
+    message: `Your mail ${escapeHtml(pkg.Title)} has arrived at ${escapeHtml(getLocationValue(pkg.CurrentLocation) || 'its destination office')} and is ready for pickup.`,
     event: TIMELINE_EVENT_ARRIVAL_NOTICE,
     eventNote: 'Arrival notification emailed to',
   })))
@@ -171,7 +175,7 @@ export async function notifyArrivals(results) {
     return true
   })
   if (failed.length) {
-    Toast.warning(`Mail updated, but the arrival email failed for: ${failed.map((p) => p.Title).join(', ')}. Use Chase to resend.`)
+    Toast.warning(`Mail updated, but the arrival email failed for: ${failed.map((p) => p.Title).join(', ')}. Use Send Reminder to resend.`)
   }
 }
 
@@ -188,20 +192,21 @@ export function hasChaseableRecipient(pkg) {
 }
 
 /**
- * Detail-panel "Chase" action: sends the chase email with Toast feedback and
- * closes the panel on success. Pass directly as a panel action's onClick.
+ * Detail-panel "Send Reminder" action: sends the pickup reminder email with
+ * Toast feedback and closes the panel on success. Pass directly as a panel
+ * action's onClick.
  *
  * @param {object} pkg
  * @param {{ close: () => void }} ctx
  */
 export async function chaseFromPanel(pkg, { close }) {
-  const loading = Toast.loading('Sending chase email...')
+  const loading = Toast.loading('Sending pickup reminder...')
   try {
     await sendChaseEmail(pkg)
-    loading.success('Chase email sent')
+    loading.success('Pickup reminder sent')
     close()
   } catch (err) {
-    console.error('[chaseFromPanel] chase email failed', { title: pkg.Title, err })
-    loading.error('Failed to send chase email')
+    console.error('[chaseFromPanel] pickup reminder email failed', { title: pkg.Title, err })
+    loading.error('Could not send the reminder. Try again.')
   }
 }

@@ -40,24 +40,6 @@
   color: var(--color-fg-tertiary);
 }
 
-/* Run progress bar */
-.maintenance__progress-track {
-  width: 100%;
-  height: 0.625rem;
-  margin: var(--space-l) 0;
-  background: var(--color-bg-subtle);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-
-.maintenance__progress-fill {
-  width: 0;
-  height: 100%;
-  background: var(--color-brand-primary);
-  border-radius: inherit;
-  transition: width var(--duration-normal) var(--curve-easy-ease);
-}
-
 .maintenance__modal-title {
   font-size: 1.375rem;
   font-weight: var(--font-weight-semibold);

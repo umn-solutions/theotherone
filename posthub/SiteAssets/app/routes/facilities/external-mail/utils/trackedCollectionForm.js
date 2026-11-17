@@ -27,6 +27,7 @@ import {
   EXTERNAL_TRACKING_PREFIX,
   MAIL_DIRECTIONS,
   PARTY_LABELS,
+  EXTERNAL_TRACKING_ID_LABEL,
 } from '../../../../utils/constants.js'
 import {
   loadCategoryOptions,
@@ -34,13 +35,18 @@ import {
   loadPartyOptions,
   loadSubcategoryMap,
   createCategoryCombos,
+  createPartyCombo,
   comboVal,
   makeSequentialId,
 } from './external-data.js'
 import { createQrLabelCard } from '../../utils/qrLabel.js'
+import { createSegmentedToggle } from '../../../../utils/segmented-toggle.js'
 import { cleanText, cleanLine, tooLongMessage, joinWithinLimit, notifyRemovedChars } from '../../../../utils/text-field.js'
-import { printQrLabel, printQrLabelA4 } from '../../utils/qrLabelPrint.js'
-import { printQrLabelPdf } from '../../utils/qrLabelPdf.js'
+import { printQrLabel } from '../../utils/qrLabelPrint.js'
+import { getHubLocation, requireHubLocation } from '../../utils/hubLocation.js'
+import { EXTERNAL_MAIL } from '../../../../utils/mail-context.js'
+import { pluralize, workingFromText, TOOLTIPS } from '../../../../utils/copy.js'
+import { createTextWithTooltip } from '../../../../utils/tooltip.js'
 
 /**
  * Builder for the tracked external-mail collection form (a multipart package).
@@ -63,6 +69,13 @@ import { printQrLabelPdf } from '../../utils/qrLabelPdf.js'
  * @returns {Promise<[object, object]>} [navbar, pageWrapper]
  */
 export async function createTrackedCollectionForm(config, { direction = MAIL_DIRECTIONS.INCOMING, routePath }) {
+  // Registration places the collection in transit FROM the office facilities is
+  // operating at, so the session hub location is required (same guard as the
+  // scan screens).
+  if (!requireHubLocation(EXTERNAL_MAIL.basePath)) {
+    return [new Container([]), new Container([])]
+  }
+
   const siteApi = new SiteApi()
   const user = new CurrentUser()
 
@@ -84,32 +97,24 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
   const recipientField = new FormField({ value: { value: '', label: '' } })
   const recipientPicker = new PeoplePicker(recipientField, {})
   const recipientTextField = new FormField({ value: '' })
-  const recipientTextInput = new TextInput(recipientTextField, { placeholder: 'Recipient name (off-platform)' })
+  const recipientTextInput = new TextInput(recipientTextField, { placeholder: 'Full name of the subsidiary recipient' })
 
   let offPlatform = false
 
   // Slot holds whichever recipient control matches the selection; swapped on change.
   const recipientSlot = new Container([recipientPicker], { class: 'external-mail-form__form-group' })
 
-  // Segmented "In directory / Off-platform" recipient toggle (SPARC has no native Switch).
-  const recipientTypeToggle = new Container([], { class: 'external-mail-form__segmented' })
-  function renderRecipientType() {
-    const makeBtn = (label, value) => new Button(label, {
-      variant: 'secondary',
-      class: `external-mail-form__seg-btn${offPlatform === value ? ' external-mail-form__seg-btn--active' : ''}`,
-      onClickHandler: () => {
-        if (offPlatform === value) return
-        offPlatform = value
-        recipientSlot.children = [offPlatform ? recipientTextInput : recipientPicker]
-        renderRecipientType()
-      },
-    })
-    recipientTypeToggle.children = [
-      makeBtn('In directory', false),
-      makeBtn('Off-platform', true),
-    ]
-  }
-  renderRecipientType()
+  // "Company Directory / Subsidiary" recipient toggle.
+  const recipientTypeToggle = createSegmentedToggle([
+    { label: 'Company Directory', value: false },
+    { label: 'Subsidiary (no account)', value: true },
+  ], {
+    value: offPlatform,
+    onChange: (value) => {
+      offPlatform = value
+      recipientSlot.children = [offPlatform ? recipientTextInput : recipientPicker]
+    },
+  })
 
   const destinationField = new FormField({ value: '' })
   const destinationComboBox = new ComboBox(destinationField, locationOptions, {
@@ -148,11 +153,11 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
 
   const gridHeader = new Container([
     new Text('Item Number', { type: 'span', class: 'external-mail-bulk__grid-label' }),
-    new Text('Category', { type: 'span', class: 'external-mail-bulk__grid-label' }),
+    createTextWithTooltip('Category', TOOLTIPS.externalForms.category, { type: 'span', class: 'external-mail-bulk__grid-label' }),
     new Text('Subcategory', { type: 'span', class: 'external-mail-bulk__grid-label' }),
     new Text('Description', { type: 'span', class: 'external-mail-bulk__grid-label' }),
-    new Text(partyLabel, { type: 'span', class: 'external-mail-bulk__grid-label' }),
-    new Text('Ext. Tracking ID', { type: 'span', class: 'external-mail-bulk__grid-label' }),
+    createTextWithTooltip(partyLabel, TOOLTIPS.externalForms.externalParty, { type: 'span', class: 'external-mail-bulk__grid-label' }),
+    createTextWithTooltip(EXTERNAL_TRACKING_ID_LABEL, TOOLTIPS.externalForms.carrierTrackingNumber, { type: 'span', class: 'external-mail-bulk__grid-label' }),
     new Text('', { type: 'span', class: 'external-mail-bulk__grid-label' }),
   ], { class: 'external-mail-bulk__grid-header' })
 
@@ -163,10 +168,7 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
       const [categoryCombo, subCombo] = createCategoryCombos(row, categoryOptions, subcategoryMap)
       const itemNumberInput = new NumberInput(row.itemNumber, { min: 0, step: 1, placeholder: 'Item #' })
       const descInput = new TextInput(row.description, { placeholder: 'Description' })
-      const fromCombo = new ComboBox(row.from, partyOptions, {
-        allowMultiple: false,
-        allowFiltering: true,
-        allowCreate: true,
+      const fromCombo = createPartyCombo(row.from, partyOptions, {
         placeholder: `${partyLabel}...`,
       })
       const externalIdInput = new TextInput(row.externalId, { placeholder: 'e.g. RR123456789PT' })
@@ -219,30 +221,16 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
       }),
       new Container([
         new Text('Collection Registered', { type: 'h3', class: 'external-mail-form__success-title' }),
-        new Text(`External mail ${trackingNumber} (${itemCount} item(s)) has been registered. Print its QR label to track the collection through the workflow.`, {
+        new Text(`Collection ${trackingNumber} (${pluralize(itemCount, 'item')}) is registered and In Transit. Print the QR label and attach it.`, {
           type: 'p',
           class: 'external-mail-form__success-text',
         }),
         createQrLabelCard(pkg),
         new Container([
-          new Button('Print', {
+          new Button('Print Label', {
             onClickHandler: () => printQrLabel(pkg, printContainer),
             class: 'mail-labels__print-btn',
-          }),
-          new Button('Print A4', {
-            onClickHandler: () => printQrLabelA4(pkg, printContainer),
-            class: 'mail-labels__print-btn',
-          }),
-          new Button('Print PDF', {
-            onClickHandler: async () => {
-              try {
-                await printQrLabelPdf(pkg)
-              } catch (err) {
-                console.error('[register-tracked] PDF print failed', err)
-                Toast.error(err?.message ?? 'PDF print failed')
-              }
-            },
-            class: 'mail-labels__print-btn',
+            title: TOOLTIPS.labels.printLabel,
           }),
         ], { class: 'external-mail-form__success-actions' }),
         new Container([
@@ -291,16 +279,16 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
       }))
       const lengthError = items.map((item, i) => tooLongMessage({
         [`Item ${i + 1}: ${partyLabel}`]: item.FromParty,
-        [`Item ${i + 1}: External Tracking ID`]: item.ExternalTrackingId,
+        [`Item ${i + 1}: ${EXTERNAL_TRACKING_ID_LABEL}`]: item.ExternalTrackingId,
       })).find(Boolean)
       if (lengthError) { Toast.error(lengthError); return }
       notifyRemovedChars({
         ...(offPlatform ? { 'Recipient name': recipientTextField.value } : {}),
-        'Collection Notes': notesField.value,
+        'Notes': notesField.value,
         ...Object.assign({}, ...filled.map((row, i) => ({
           [`Item ${i + 1}: Description`]: row.description.value,
           [`Item ${i + 1}: ${partyLabel}`]: comboVal(row.from.value),
-          [`Item ${i + 1}: External Tracking ID`]: row.externalId.value,
+          [`Item ${i + 1}: ${EXTERNAL_TRACKING_ID_LABEL}`]: row.externalId.value,
         }))),
       })
 
@@ -311,6 +299,7 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
       try {
         const now = new Date()
         const trackingNumber = makeSequentialId(EXTERNAL_TRACKING_PREFIX, now)
+        const hubLocation = getHubLocation()
 
         // Denormalized summaries for the search list view (header carries no per-item data).
         const distinctCategories = [...new Set(items.map((item) => item.Category).filter(Boolean))]
@@ -331,7 +320,7 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
           // Registration puts the collection straight into the logistics flow
           // (no dispatch step for external mail).
           Status: 'in transit',
-          CurrentLocation: '',
+          CurrentLocation: hubLocation,
           DestinationLocation: destination,
           PackageDetails: cleanText(notesField.value),
           Categories: distinctCategories,
@@ -350,17 +339,17 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
         await siteApi.list(LIST_TIMELINE_ENTRIES).createItem({
           Title: trackingNumber,
           Status: 'in transit',
-          Location: '',
+          Location: hubLocation,
           ChangedBy: UserIdentity.fromCurrentUser(user),
-          Notes: `External mail collection registered (${filled.length} item(s))`,
+          Notes: `Collection registered (${pluralize(filled.length, 'item')})`,
         })
 
-        loading.success(`Collection ${trackingNumber} registered`)
+        loading.success(`Collection ${trackingNumber} (${pluralize(filled.length, 'item')}) registered`)
         contentLoader.toggleLoader()
         mainContent.children = [buildSuccessCard(headerPayload, filled.length)]
       } catch (err) {
         console.error('[register-tracked] createItem failed', err)
-        loading.error('Failed to register collection')
+        loading.error('Could not register the collection. Please try again.')
         contentLoader.toggleLoader()
       } finally {
         submitBtn.isLoading = false
@@ -375,10 +364,10 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
     new Container([
       new Text('Collection Details', { type: 'span', class: 'external-mail-form__form-title' }),
     ], { class: 'external-mail-form__form-header' }),
-    new FieldLabel('Recipient', recipientTypeToggle, { position: 'left', class: 'external-mail-form__toggle-row' }),
+    new FieldLabel('Recipient', recipientTypeToggle, { position: 'left', class: 'posthub__toggle-row', tooltip: TOOLTIPS.externalForms.recipientType }),
     new FieldLabel('Recipient Name', recipientSlot, { class: 'external-mail-form__form-group' }),
     new FieldLabel('Destination Office', destinationComboBox, { class: 'external-mail-form__form-group' }),
-    new FieldLabel('Collection Notes (optional)', notesTextArea, { class: 'external-mail-form__form-group' }),
+    new FieldLabel('Notes (optional)', notesTextArea, { class: 'external-mail-form__form-group' }),
   ], { class: 'external-mail-form__form-content' })
   const headerSection = new Container([headerCard], { class: 'external-mail-form__form-section' })
 
@@ -402,10 +391,11 @@ export async function createTrackedCollectionForm(config, { direction = MAIL_DIR
       }),
       new Text('Register Tracked Mail', { type: 'h1', class: 'posthub__page-title' }),
     ], { class: 'posthub__title-with-icon' }),
-    new Text('Register a tracked collection: one QR label covers multiple items sharing the same recipient and destination.', {
+    new Text('One QR label covers several items for the same recipient and office.', {
       type: 'p',
       class: 'posthub__page-subtitle',
     }),
+    createTextWithTooltip(workingFromText(getHubLocation()), TOOLTIPS.workingOffice, { type: 'p', class: 'posthub__page-subtitle' }),
   ], { class: 'posthub__page-header' })
 
   // Use the wide (75rem) bulk wrapper so the multi-column items grid has room;

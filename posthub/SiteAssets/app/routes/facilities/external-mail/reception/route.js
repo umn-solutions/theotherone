@@ -4,6 +4,7 @@ import { notifyArrivals } from '../../utils/package-actions.js'
 import { getLocationValue } from '../../../../utils/user-helpers.js'
 import { EXTERNAL_MAIL } from '../../../../utils/mail-context.js'
 import { guardAccess } from '../../../../utils/access.js'
+import { PAGE_DESCRIPTIONS } from '../../../../utils/copy.js'
 
 export default defineRoute(async (config) => {
   // Facilities route: employee+ access required
@@ -11,7 +12,7 @@ export default defineRoute(async (config) => {
 
   return createMailActionRoute(config, {
     title: 'Reception',
-    subtitle: 'Register incoming external mail at your location',
+    subtitle: PAGE_DESCRIPTIONS.externalReception,
     backRoute: 'facilities/external-mail',
     expectedStatuses: ['in transit'],
     getTargetStatus: (pkg, selectedLocation) =>

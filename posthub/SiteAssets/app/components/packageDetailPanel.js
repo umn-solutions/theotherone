@@ -23,7 +23,9 @@ import {
 	TIMELINE_EVENT_DESCRIPTIONS,
 	DIRECTION_LABELS,
 	MAIL_DIRECTIONS,
+	EXTERNAL_TRACKING_ID_LABEL,
 } from "../utils/constants.js";
+import { createStatusBadge } from "../utils/package-table-columns.js";
 
 /**
  * Creates a shared package detail SidePanel.
@@ -119,7 +121,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 					type: "span",
 					class: "posthub__batch-category posthub__batch-header-cell",
 				}),
-				new Text("Qty", {
+				new Text("Quantity", {
 					type: "span",
 					class: "posthub__batch-qty posthub__batch-header-cell",
 				}),
@@ -140,10 +142,10 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 
 	function createBatchItem(item, index, currentPkg) {
 		const isCurrent = item.Id === currentPkg.Id;
-		// Route reads external -> office for incoming, office -> external for outgoing.
+		// Route reads external to office for incoming, office to external for outgoing.
 		const office = getLocationValue(item.InternalOffice) || "--";
 		const ext = item.ExternalParty || "--";
-		const route = item.Direction === "outgoing" ? `${office} -> ${ext}` : `${ext} -> ${office}`;
+		const route = item.Direction === "outgoing" ? `${office} to ${ext}` : `${ext} to ${office}`;
 		return new Container(
 			[
 				new Text(`${index + 1}.`, {
@@ -185,7 +187,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 		if (item.SubCategory) fields.push(createField("Subcategory", item.SubCategory));
 		if (item.FromParty) fields.push(createField("From", item.FromParty));
 		if (item.ExternalTrackingId)
-			fields.push(createField("External Tracking ID", item.ExternalTrackingId));
+			fields.push(createField(EXTERNAL_TRACKING_ID_LABEL, item.ExternalTrackingId));
 
 		return new Container(
 			[
@@ -219,17 +221,14 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 		);
 	}
 
-	function createStatusField(status, statusClass) {
+	function createStatusField(status) {
 		return new Container(
 			[
 				new Text("Status", {
 					type: "span",
 					class: "posthub__detail-label",
 				}),
-				new Text(status, {
-					type: "span",
-					class: `posthub__status-badge posthub__status-badge--${statusClass}`,
-				}),
+				createStatusBadge(status),
 			],
 			{ class: "posthub__detail-field" },
 		);
@@ -332,7 +331,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 				createField(`${internalRole} (internal)`, resolveDisplayName(pkg.InternalContact)),
 				createField("Office", getLocationValue(pkg.InternalOffice) || "N/A"),
 				createField("Registered By", resolveDisplayName(pkg.RegisteredByEmail)),
-				...(pkg.BatchId ? [createField("Batch ID", pkg.BatchId)] : []),
+				...(pkg.BatchId ? [createField("Log Batch", pkg.BatchId)] : []),
 				...(pkg.CollectionNotes ? [createField("Collection Notes", pkg.CollectionNotes)] : []),
 				...(pkg.Created
 					? [createField("Registered On", new Date(pkg.Created).toLocaleString())]
@@ -395,7 +394,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 		} catch (err) {
 			console.error("[packageDetailPanel] failed to load batch items", err);
 			itemsContainer.children = [
-				new Text("Failed to load batch items", {
+				new Text("Could not load the logged items. Reopen this panel to try again.", {
 					type: "p",
 					class: "posthub__detail-empty",
 				}),
@@ -412,8 +411,6 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 		// with its line items stored separately in the ExternalMailItems list.
 		const isTrackedCollection = pkg.__listName === LIST_EXTERNAL_PACKAGES;
 
-		const statusClass = (pkg.Status || "").replace(" ", "-");
-
 		const extraFields = [];
 		if (showSmartCardId && pkg.SmartCardId) {
 			extraFields.push(createField("Smart Card ID", pkg.SmartCardId));
@@ -423,11 +420,11 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 				new Container(
 					[
 						new Text(
-							[getIcon("checkbox-circle-line"), "Secure PickUp with Digital Signature"],
+							[getIcon("checkbox-circle-line"), "Collected with Smart Card Signature"],
 							{ type: "span", class: "posthub__detail-signature-note__title" },
 						),
 						new Text(
-							"This package was collected with a verified digital signature, confirming the recipient's identity. The facilities team can use this record to identify the responsible individual, adding an additional layer of trust and accountability to the pickup process.",
+							"Collection was confirmed with a corporate smart card, so there is a verifiable record of who picked it up.",
 							{ type: "p", class: "posthub__detail-signature-note__body" },
 						),
 					],
@@ -439,17 +436,17 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 		// Off-platform (subsidiary) recipient: flag it, and for delivered items note
 		// the proof is the archived physical signed document (no smartcard).
 		if (pkg.OffPlatformRecipient === true || pkg.OffPlatformRecipient === "true") {
-			extraFields.push(createField("Recipient Type", "Off-platform (subsidiary)"));
+			extraFields.push(createField("Recipient Type", "Subsidiary recipient (no company account)"));
 			if (pkg.Status === "delivered") {
 				extraFields.push(
 					new Container(
 						[
 							new Text(
-								[getIcon("checkbox-circle-line"), "Delivered via Signed Proof"],
+								[getIcon("checkbox-circle-line"), "Delivered with Signed Proof"],
 								{ type: "span", class: "posthub__detail-signature-note__title" },
 							),
 							new Text(
-								"Delivered by a courier to a subsidiary office. The signed proof document is archived in the facilities records, outside the platform.",
+								"A courier delivered this to a subsidiary office. The signed proof of delivery is filed in the facilities records, not on PostHub.",
 								{ type: "p", class: "posthub__detail-signature-note__body" },
 							),
 						],
@@ -464,7 +461,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 				createField("Tracking Number", pkg.Title),
 				createField("Sender", resolveDisplayName(pkg.Sender)),
 				createField("Recipient", resolveDisplayName(pkg.Recipient)),
-				createStatusField(pkg.Status, statusClass),
+				createStatusField(pkg.Status),
 				createField(
 					"Current Location",
 					getLocationValue(pkg.CurrentLocation) || "N/A",
@@ -478,7 +475,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 				createField("Mail Details", pkg.PackageDetails || "N/A"),
 				...(pkg.Category ? [createField("Category", pkg.Category)] : []),
 				...(pkg.Source ? [createField("Source", pkg.Source)] : []),
-				...(pkg.ExternalTrackingId ? [createField("External Tracking ID", pkg.ExternalTrackingId)] : []),
+				...(pkg.ExternalTrackingId ? [createField(EXTERNAL_TRACKING_ID_LABEL, pkg.ExternalTrackingId)] : []),
 				...extraFields,
 			],
 			{ class: "posthub__detail-fields" },
@@ -547,7 +544,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 			} catch (err) {
 				console.error("[packageDetailPanel] failed to load collection items", err);
 				partsContainer.children = [
-					new Text("Failed to load items", {
+					new Text("Could not load the collection items. Reopen this panel to try again.", {
 						type: "p",
 						class: "posthub__detail-empty",
 					}),
@@ -572,7 +569,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 							),
 						]
 					: [
-							new Text("No timeline entries recorded", {
+							new Text("No history yet.", {
 								type: "p",
 								class: "posthub__detail-empty",
 							}),
@@ -580,7 +577,7 @@ export function createPackageDetailPanel({ showSmartCardId = false, actions = []
 		} catch (err) {
 			console.error("[packageDetailPanel] failed to load timeline", err);
 			timelineContainer.children = [
-				new Text("Failed to load timeline", {
+				new Text("Could not load the history. Reopen this panel to try again.", {
 					type: "p",
 					class: "posthub__detail-empty",
 				}),

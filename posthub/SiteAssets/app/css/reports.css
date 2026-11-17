@@ -116,12 +116,6 @@
   width: 100%;
 }
 
-.reports__filter-hint {
-  margin: 0;
-  font-size: var(--font-size-100);
-  color: var(--color-fg-tertiary);
-}
-
 .reports__filter-actions {
   display: flex;
   flex-direction: column;

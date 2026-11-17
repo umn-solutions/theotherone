@@ -39,22 +39,12 @@
   gap: var(--space-l);
 }
 
-.my-mail__filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
+/* Layout + label styles come from the shared .posthub__filter-group /
+   .posthub__filter-label (css/shared.css). Sidebar override only: */
 /* ComboBoxes and DateRangeInput stretch to full sidebar width */
 .my-mail__filter-group .nofbiz__combobox,
 .my-mail__filter-group .nofbiz__daterangeinput {
   width: 100%;
-}
-
-.my-mail__filter-label {
-  font-size: var(--font-size-100);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-fg-secondary);
 }
 
 .my-mail__button-row {

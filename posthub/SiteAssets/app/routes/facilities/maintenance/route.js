@@ -27,10 +27,14 @@ import {
   LIST_PACKAGES,
   LIST_EXTERNAL_PACKAGES,
   MAIL_DIRECTIONS,
+  CHASE_STALE_DAYS,
+  CLEANUP_STALE_DAYS,
 } from '../../../utils/constants.js'
+import { pluralize, PAGE_DESCRIPTIONS, TOOLTIPS } from '../../../utils/copy.js'
 import { sendChaseEmail, deletePackageWithTimeline, hasChaseableRecipient } from '../utils/package-actions.js'
 import { guardAccess } from '../../../utils/access.js'
 import { getLocationValue } from '../../../utils/user-helpers.js'
+import { createProgressBar } from '../../../utils/progress-bar.js'
 
 export default defineRoute((config) => {
   config.setRouteTitle('Maintenance')
@@ -41,24 +45,17 @@ export default defineRoute((config) => {
   const navbar = createNavbar()
   const siteApi = new SiteApi()
 
-  // Staleness thresholds (days) that define which packages an action affects.
-  const CHASE_STALE_DAYS = 11
-  const CLEANUP_STALE_DAYS = 7
-
-  function pluralize(n, word) {
-    return `${n} ${word}${n === 1 ? '' : 's'}`
-  }
-
-  // Each action declares how to LOAD its affected packages (read-only), how to
-  // present them, and how to PROCESS one item.
+  // Each action declares how to LOAD its affected mail (read-only), how to
+  // present it, and how to PROCESS one item.
   const ACTIONS = [
     {
       key: 'chase-emails',
-      title: 'Chase Emails',
-      description: `Email recipients whose mail has been awaiting pickup for more than ${CHASE_STALE_DAYS} days.`,
-      runLabel: 'Send Emails',
+      title: 'Pickup Reminders',
+      description: `Email recipients whose mail has been waiting for pickup for more than ${CHASE_STALE_DAYS} days.`,
+      runLabel: 'Send Reminders',
+      runTooltip: TOOLTIPS.maintenance.sendReminders,
       noun: 'recipient',
-      emptyText: 'No mail is overdue for pickup. Nothing to chase.',
+      emptyText: 'No mail is overdue for pickup. Nothing to send.',
       columns: () => [
         trackingIdColumn(),
         recipientColumn(),
@@ -89,11 +86,12 @@ export default defineRoute((config) => {
     },
     {
       key: 'cleanup',
-      title: 'Database Cleanup',
-      description: `Remove stale pending mail registered over ${CLEANUP_STALE_DAYS} days ago that was never dropped off.`,
-      runLabel: 'Run Cleanup',
+      title: 'Remove Abandoned Registrations',
+      description: `Permanently delete Pending mail registered more than ${CLEANUP_STALE_DAYS} days ago that never reached a facilities desk.`,
+      runLabel: 'Delete Selected',
+      runTooltip: TOOLTIPS.maintenance.cleanup,
       noun: 'stale pending item',
-      emptyText: 'No stale pending mail found. Nothing to clean up.',
+      emptyText: 'No stale pending mail found. Nothing to delete.',
       columns: () => [
         trackingIdColumn(),
         senderColumn(),
@@ -281,7 +279,7 @@ export default defineRoute((config) => {
       updateSelection(selectedItems)
     } catch (err) {
       console.error(`[maintenance] failed to load ${action.key} items`, err)
-      previewSummary.children = 'Failed to load affected items'
+      previewSummary.children = 'Could not load affected items.'
       showEmpty('Could not load affected items. Close and try again.')
     }
   }
@@ -296,17 +294,14 @@ export default defineRoute((config) => {
     cancelBtn.isDisabled = true
 
     // Determinate progress bar -- we know the total up front.
-    const fill = new Container([], { class: 'maintenance__progress-fill' })
-    previewBody.children = [
-      new Container([fill], { class: 'maintenance__progress-track' }),
-    ]
+    const progress = createProgressBar(`${action.title} progress`)
+    previewBody.children = [progress.bar]
 
     let done = 0
     let failed = 0
     const renderProgress = () => {
       previewSummary.children = `Processing ${done} of ${pluralize(total, 'item')}...`
-      const pct = total > 0 ? Math.round((done / total) * 100) : 100
-      fill.instance?.css('width', `${pct}%`)
+      progress.set(total > 0 ? (done / total) * 100 : 100)
     }
     renderProgress()
 
@@ -327,7 +322,7 @@ export default defineRoute((config) => {
       if (failed > 0) {
         Toast.warning(`${action.title}: ${total - failed} done, ${failed} failed`)
       } else {
-        Toast.success(`${action.title} complete -- ${pluralize(total, 'item')} processed`)
+        Toast.success(`${action.title} complete: ${pluralize(total, 'item')} processed`)
       }
       previewModal.close()
     } finally {
@@ -350,13 +345,25 @@ export default defineRoute((config) => {
           new Button(action.runLabel, {
             onClickHandler: () => openPreview(action),
             class: 'posthub__card-btn',
+            ...(action.runTooltip ? { title: action.runTooltip } : {}),
           }),
         ],
         { class: 'posthub__card' },
       ),
   )
 
-  const cardGrid = new Container(actionCards, { class: 'posthub__card-grid' })
+  // Navigation card: the full export lives on its own subroute (long-running,
+  // needs a dedicated page rather than the preview modal).
+  const fullExportCard = new Container(
+    [
+      new Text('Full Mail Export', { type: 'h2', class: 'posthub__card-title' }),
+      new Text(PAGE_DESCRIPTIONS.fullExport, { type: 'p', class: 'posthub__card-description' }),
+      new LinkButton('Open Full Export', 'facilities/maintenance/full-export', { class: 'posthub__card-btn' }),
+    ],
+    { class: 'posthub__card' },
+  )
+
+  const cardGrid = new Container([...actionCards, fullExportCard], { class: 'posthub__card-grid' })
 
   // --- Page header ---
   const pageHeader = new Container(
@@ -370,7 +377,7 @@ export default defineRoute((config) => {
         ],
         { class: 'posthub__title-with-icon' },
       ),
-      new Text('Preview affected mail, then run admin workflows and cleanup actions', {
+      new Text('Pickup reminders, cleanup of abandoned registrations, and a full mail export.', {
         type: 'p',
         class: 'posthub__page-subtitle',
       }),

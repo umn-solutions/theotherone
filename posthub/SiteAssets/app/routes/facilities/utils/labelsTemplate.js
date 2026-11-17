@@ -15,7 +15,8 @@ import {
 
 import { createNavbar } from '../../../components/navbar.js'
 import { createPackageDetailPanel } from '../../../components/packageDetailPanel.js'
-import { TIMELINE_EVENT_REPRINT } from '../../../utils/constants.js'
+import { TIMELINE_EVENT_REPRINT, TRACKING_NUMBER_LABEL } from '../../../utils/constants.js'
+import { PAGE_DESCRIPTIONS, TOOLTIPS, pluralize } from '../../../utils/copy.js'
 import { createPackageTable } from '../../../utils/package-table.js'
 import {
   trackingIdColumn,
@@ -27,38 +28,42 @@ import {
   dateColumn,
 } from '../../../utils/package-table-columns.js'
 import { fetchItemsAcrossLists } from '../../../utils/mail-context.js'
-import { printQrLabel, printQrLabelA4 } from './qrLabelPrint.js'
-import { printQrLabelPdf } from './qrLabelPdf.js'
+import { bindTrackingScanInput } from '../../../utils/filter-helpers.js'
+import { createSegmentedToggle } from '../../../utils/segmented-toggle.js'
+import { printQrLabel } from './qrLabelPrint.js'
 import { logTimelineEvent } from './package-actions.js'
 
 /**
  * Shared Print / Reprint labels route, parameterized by mail context + variant.
- * Search finds a person's mail (by ctx.labelSearchField) across ctx.listNames and
- * offers per-row Print / Print A4 / Print PDF. Styling comes from the shared
- * global stylesheet css/mail-workflow.css (mail-labels__* classes).
+ * Print: finds a person's pending mail (by ctx.labelSearchField). Reprint: a
+ * segmented toggle switches the search between that person (default) and a
+ * tracking ID, typed or scanned from a label QR. Offers a per-row Print (A6
+ * landscape label). Styling: css/mail-workflow.css (mail-labels__* classes).
  *
  * @param {object} config SPARC route config
  * @param {object} ctx    Mail context (INTERNAL_MAIL / EXTERNAL_MAIL)
- * @param {object} opts   { variant: 'print' | 'reprint', searchBy?: 'person' | 'tracking' }
- *   searchBy 'tracking' replaces the person search with a tracking-number lookup.
+ * @param {object} opts   { variant: 'print' | 'reprint' }
  * @returns {Promise<[object, object]>} [navbar, contentArea]
  */
-export async function createLabelsRoute(config, ctx, { variant, searchBy = 'person' }) {
+export async function createLabelsRoute(config, ctx, { variant }) {
   const isReprint = variant === 'reprint'
-  const byTracking = searchBy === 'tracking'
   const verb = isReprint ? 'Reprint' : 'Print'
   // Print covers pending mail only; reprint covers every item, whatever its status.
   const mailNoun = isReprint ? 'mail' : 'pending mail'
   config.setRouteTitle(`${verb} Labels`)
 
   const siteApi = new SiteApi()
-  const searchField = ctx.labelSearchField
-  const searchNoun = byTracking ? 'tracking number' : ctx.labelSearchNoun
-  const searchLabel = byTracking ? 'Tracking Number' : (searchNoun.charAt(0).toUpperCase() + searchNoun.slice(1))
+  const personNoun = ctx.labelSearchNoun // 'sender' (internal) | 'recipient' (external)
+  const personLabel = personNoun.charAt(0).toUpperCase() + personNoun.slice(1)
 
+  const SEARCH_PERSON = 'person'
+  const SEARCH_TRACKING = 'tracking'
+  let searchMode = SEARCH_PERSON
   let hasSearched = false
   let packages = []
+  let lastQueryLabel = ''
 
+  // --- Person search ---
   const personField = new FormField({ value: { value: '', label: '' } })
   const personPicker = new PeoplePicker(personField, {
     placeholder: 'Search by name or email...',
@@ -69,14 +74,65 @@ export async function createLabelsRoute(config, ctx, { variant, searchBy = 'pers
       }
     },
   })
+  const personLabelOpts = { class: 'mail-labels__sender-field' }
+  if (ctx.labelSearchNoun === 'sender' && !isReprint) personLabelOpts.tooltip = TOOLTIPS.labels.sender
+  const personControl = new FieldLabel(personLabel, personPicker, personLabelOpts)
 
-  // Tracking-number search (used when searchBy === 'tracking').
+  // --- Tracking ID search (reprint only): typed + Search/Enter, or scanned ---
   const trackingField = new FormField({ value: '' })
-  const trackingInput = new TextInput(trackingField, { placeholder: 'Type or scan a tracking number...' })
+  const trackingInput = new TextInput(trackingField, { placeholder: 'e.g. POSTHUB-20260201-00001' })
+  const resolveTracking = bindTrackingScanInput(trackingField, trackingInput, handleTrackingSearch)
   const trackingSearchBtn = new Button('Search', {
-    onClickHandler: () => handleTrackingSearch(),
+    onClickHandler: () => handleTrackingSearch(resolveTracking(trackingField.value || '')),
     class: 'mail-labels__print-btn',
   })
+  const trackingControl = new Container([
+    new FieldLabel(TRACKING_NUMBER_LABEL, trackingInput, { class: 'mail-labels__sender-field' }),
+    trackingSearchBtn,
+  ], { class: 'mail-labels__tracking-search' })
+
+  const SEARCH_MODES = {
+    [SEARCH_PERSON]: {
+      title: `Search by ${personLabel}`,
+      hint: `Type the ${personNoun}'s name or email to find their ${mailNoun}`,
+      control: personControl,
+    },
+    [SEARCH_TRACKING]: {
+      title: `Search by ${TRACKING_NUMBER_LABEL}`,
+      hint: 'Type a tracking number and press Enter, or scan the QR label',
+      control: trackingControl,
+    },
+  }
+
+  const promptTitle = new Text(SEARCH_MODES[searchMode].title, { type: 'h2', class: 'posthub__prompt-title' })
+  const promptHint = new Text(SEARCH_MODES[searchMode].hint, { type: 'p', class: 'posthub__prompt-subtitle' })
+  const searchSlot = new Container([SEARCH_MODES[searchMode].control], { class: 'mail-labels__search-slot' })
+
+  // Ready for the scanner: a keyboard-wedge scanner types into the focused field.
+  // (.instance escape hatch for focus only -- FormField.focusOnInput() is a no-op
+  // on fields without a validator.)
+  function focusTrackingInput() {
+    trackingInput.instance?.trigger('focus')
+  }
+
+  function setSearchMode(mode) {
+    searchMode = mode
+    const { title, hint, control } = SEARCH_MODES[mode]
+    promptTitle.children = title
+    promptHint.children = hint
+    searchSlot.children = [control]
+    if (mode === SEARCH_TRACKING) focusTrackingInput()
+  }
+
+  const modeToggleRow = isReprint
+    ? new FieldLabel('Search by', createSegmentedToggle([
+        { label: personLabel, value: SEARCH_PERSON },
+        { label: TRACKING_NUMBER_LABEL, value: SEARCH_TRACKING },
+      ], { value: searchMode, onChange: setSearchMode }), {
+        position: 'left',
+        class: 'posthub__toggle-row mail-labels__mode-toggle',
+      })
+    : null
 
   const pageLoader = new Loader(new Text('Loading...'), { animation: 'pulse' })
   pageLoader.toggleLoader()
@@ -91,7 +147,11 @@ export async function createLabelsRoute(config, ctx, { variant, searchBy = 'pers
       }),
       new Text(`${verb} Labels`, { type: 'h1', class: 'posthub__page-title' }),
     ], { class: 'posthub__title-with-icon' }),
-    new Text(`Search for a ${searchNoun} to ${verb.toLowerCase()} QR labels`, {
+    new Text(isReprint
+      ? PAGE_DESCRIPTIONS.reprintLabels
+      : ctx.labelSearchNoun === 'sender'
+        ? PAGE_DESCRIPTIONS.printLabels
+        : `Find a ${personNoun}, select their pending mail and print QR labels to attach.`, {
       type: 'p',
       class: 'posthub__page-subtitle',
     }),
@@ -99,23 +159,12 @@ export async function createLabelsRoute(config, ctx, { variant, searchBy = 'pers
 
   const tableContainer = new Container([], { class: 'posthub__table-container' })
 
-  const searchControl = byTracking
-    ? new Container([
-        new FieldLabel(searchLabel, trackingInput, { class: 'mail-labels__sender-field' }),
-        trackingSearchBtn,
-      ], { class: 'mail-labels__tracking-search' })
-    : new FieldLabel(searchLabel, personPicker, { class: 'mail-labels__sender-field' })
-
   const searchPrompt = new Container([
     new Container([
-      new Text(`Search for ${searchLabel}`, { type: 'h2', class: 'posthub__prompt-title' }),
-      new Text(byTracking
-        ? 'Type or scan a tracking number to reprint its QR label'
-        : `Type a name or email to find ${mailNoun}`, {
-        type: 'p',
-        class: 'posthub__prompt-subtitle',
-      }),
-      searchControl,
+      promptTitle,
+      promptHint,
+      ...(modeToggleRow ? [modeToggleRow] : []),
+      searchSlot,
     ], { class: 'posthub__prompt-content' }),
   ], { class: 'posthub__prompt' })
 
@@ -123,49 +172,62 @@ export async function createLabelsRoute(config, ctx, { variant, searchBy = 'pers
     pageLoader.toggleLoader()
     try {
       packages = await fetchItemsAcrossLists(siteApi, ctx.listNames, {
-        [searchField]: email,
+        [ctx.labelSearchField]: email,
         ...(isReprint ? {} : { Status: 'pending' }),
       })
       hasSearched = true
-      Toast.success(`Found ${packages.length} ${mailNoun} item(s) for ${displayName}`)
+      lastQueryLabel = `${personLabel}: ${displayName}`
+      Toast.success(`Found ${pluralize(packages.length, `${mailNoun} item`)} for ${displayName}`)
       updateView()
     } catch (err) {
       console.error('[labels] failed to load mail', err)
-      Toast.error('Failed to load mail')
+      Toast.error('Could not load mail. Try again.')
     } finally {
       pageLoader.toggleLoader()
     }
   }
 
-  async function handleTrackingSearch() {
-    const tracking = (trackingField.value || '').trim()
-    if (!tracking) { Toast.error('Enter a tracking number'); return }
+  async function handleTrackingSearch(tracking) {
+    if (!tracking) { Toast.error('Enter a tracking number or scan a QR label.'); return }
+    if (trackingSearchBtn.isLoading) return
+    trackingSearchBtn.isLoading = true
     pageLoader.toggleLoader()
+    let loaded = false
     try {
       // Exact tracking-number lookup across the context's lists (header record).
       packages = await fetchItemsAcrossLists(siteApi, ctx.listNames, { Title: tracking })
       hasSearched = true
-      Toast.success(`Found ${packages.length} mail item(s) for ${tracking}`)
-      updateView()
+      lastQueryLabel = `${TRACKING_NUMBER_LABEL}: ${tracking}`
+      loaded = true
+      Toast.success(`Found ${pluralize(packages.length, 'mail item')} for ${tracking}`)
     } catch (err) {
-      console.error('[labels] failed to load mail by tracking', err)
-      Toast.error('Failed to load mail')
+      console.error('[labels] failed to load mail by tracking', { tracking, err })
+      Toast.error('Could not load mail. Try again.')
     } finally {
+      // Reset BEFORE updateView swaps the search card out: isLoading set on a
+      // detached button does not stick, so it would come back disabled.
+      trackingSearchBtn.isLoading = false
       pageLoader.toggleLoader()
     }
+    if (loaded) updateView()
   }
 
+  // Back to the search card, keeping the selected mode.
   function resetSearch() {
     hasSearched = false
     packages = []
-    if (byTracking) {
-      trackingField.value = ''
-    } else {
-      personField.value = { value: '', label: '' }
-      personPicker.clearSelection()
-    }
+    trackingField.value = ''
+    trackingInput.render()
+    personField.value = { value: '', label: '' }
+    personPicker.clearSelection()
     updateView()
+    if (searchMode === SEARCH_TRACKING) focusTrackingInput()
   }
+
+  const newSearchBtn = () => new Button('New Search', {
+    onClickHandler: resetSearch,
+    class: 'posthub__scan-btn',
+  })
 
   function markRowPrinted(e) {
     e.stopPropagation()
@@ -175,39 +237,13 @@ export async function createLabelsRoute(config, ctx, { variant, searchBy = 'pers
   function buildActionColumn() {
     return {
       label: 'Action',
-      render: (pkg) => {
-        // PDF generation is async (canvas raster) -- lock the button and show
-        // progress so it can't be fired repeatedly while the PDF is building.
-        const pdfBtn = new Button(`${verb} PDF`, {
-          onClickHandler: async (e) => {
-            markRowPrinted(e)
-            pdfBtn.isLoading = true
-            const loading = Toast.loading('Generating PDF...')
-            try {
-              await printQrLabelPdf(pkg)
-              logReprint(pkg, 'PDF')
-              loading.success('PDF ready')
-            } catch (err) {
-              console.error('[labels] PDF print failed', err)
-              loading.error(err?.message ?? 'PDF print failed')
-            } finally {
-              pdfBtn.isLoading = false
-            }
-          },
+      render: (pkg) => new Container([
+        new Button(verb, {
+          title: TOOLTIPS.labels.printLabel,
+          onClickHandler: (e) => { markRowPrinted(e); handlePrintLabel(pkg) },
           class: 'mail-labels__print-btn',
-        })
-        return new Container([
-          new Button(verb, {
-            onClickHandler: (e) => { markRowPrinted(e); handlePrintLabel(pkg) },
-            class: 'mail-labels__print-btn',
-          }),
-          new Button(`${verb} A4`, {
-            onClickHandler: (e) => { markRowPrinted(e); handlePrintLabelA4(pkg) },
-            class: 'mail-labels__print-btn',
-          }),
-          pdfBtn,
-        ], { class: 'posthub__table-cell' })
-      },
+        }),
+      ], { class: 'posthub__table-cell' }),
     }
   }
 
@@ -220,20 +256,19 @@ export async function createLabelsRoute(config, ctx, { variant, searchBy = 'pers
       tableContainer.children = [
         new Container([
           new Container([
-            new Text(byTracking ? 'No mail found' : `No ${mailNoun} found`, {
+            new Text(`No ${mailNoun} found`, {
               type: 'h2',
               class: 'posthub__prompt-title',
             }),
             new Text(
-              byTracking
+              searchMode === SEARCH_TRACKING
                 ? 'No mail matches that tracking number.'
-                : `This ${searchNoun} has no ${mailNoun}.`,
+                : ctx.labelSearchNoun === 'sender' && !isReprint
+                  ? 'This sender has no pending mail. They may need to register it in Send Mail first.'
+                  : `This ${personNoun} has no ${mailNoun}.`,
               { type: 'p', class: 'posthub__prompt-subtitle' },
             ),
-            new Button(`Search Another ${searchLabel}`, {
-              onClickHandler: resetSearch,
-              class: 'posthub__scan-btn',
-            }),
+            newSearchBtn(),
           ], { class: 'posthub__prompt-content' }),
         ], { class: 'posthub__prompt' }),
       ]
@@ -265,7 +300,13 @@ export async function createLabelsRoute(config, ctx, { variant, searchBy = 'pers
       tableClass: isReprint ? 'mail-labels__table--reprint' : 'mail-labels__table--print',
     })
 
-    tableContainer.children = [table]
+    // Results bar: what was searched + a way back to the search card (and toggle).
+    const resultsBar = new Container([
+      new Text(`${lastQueryLabel}, ${pluralize(packages.length, 'item')}`, { type: 'p', class: 'mail-labels__results-summary' }),
+      newSearchBtn(),
+    ], { class: 'posthub__bulk-bar mail-labels__results-bar' })
+
+    tableContainer.children = [resultsBar, table]
   }
 
   // Hidden container for print-only QR label
@@ -274,18 +315,9 @@ export async function createLabelsRoute(config, ctx, { variant, searchBy = 'pers
   // Record a reprint on the shared timeline so it surfaces in the detail-panel
   // events feed. Only reprints are tracked -- the initial print happens as part
   // of registration/dispatch, already represented by those status entries.
-  function logReprint(pkg, format) {
-    if (isReprint) logTimelineEvent(pkg, TIMELINE_EVENT_REPRINT, `${format} format`)
-  }
-
   function handlePrintLabel(pkg) {
     printQrLabel(pkg, printContainer)
-    logReprint(pkg, 'Standard')
-  }
-
-  function handlePrintLabelA4(pkg) {
-    printQrLabelA4(pkg, printContainer)
-    logReprint(pkg, 'A4')
+    if (isReprint) logTimelineEvent(pkg, TIMELINE_EVENT_REPRINT)
   }
 
   updateView()

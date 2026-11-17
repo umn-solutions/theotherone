@@ -25,19 +25,7 @@
   min-height: 2.0625rem;
 }
 
-/* The shared .form-control rule forces width:25ch on the checkbox, stretching it
-   into a wide bar. Restore the intended square box. */
-.external-mail-search__type-filter .nofbiz__checkbox {
-  width: 1.25em;
-  flex: 0 0 auto;
-}
-
-/* FieldLabel --right stretches the checkbox container (flex:1), pushing the label
-   to the far edge. Collapse it so square + label sit together, left-aligned. */
-.external-mail-search__type-filter .nofbiz__fieldlabel__component-container {
-  flex: 0 0 auto;
-  width: auto;
-}
+/* Checkbox sizing: shared .posthub__checkbox-option (shared.css) */
 
 /* Results area */
 .external-mail-search__results {

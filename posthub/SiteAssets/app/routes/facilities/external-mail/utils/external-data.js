@@ -57,37 +57,46 @@ export const loadLocationOptions = (siteApi) => loadActiveTitles(siteApi, LIST_L
 export const loadPartyOptions = (siteApi) => loadSourceOptions(siteApi)
 
 /**
- * Index of per-item external tracking IDs keyed by their parent collection's
- * header tracking number (ExternalMailItems.Title is the FK to
- * ExternalMailPackages.Title). Used by the search view to let staff find a
- * collection by any item's carrier tracking id. IDs are lowercased for
- * case-insensitive substring matching. Empty Map on failure (logged).
+ * All ExternalMailItems grouped by their parent collection's header tracking
+ * number (ExternalMailItems.Title is the FK to ExternalMailPackages.Title).
+ *
+ * Returns the full item objects so callers can:
+ * - build a text-search index for the External Tracking ID filter,
+ * - export item-level detail rows without a second fetch.
+ *
+ * Uses String() on field values to guard against ListApi auto-parsing converting
+ * boolean-looking or JSON-looking strings to non-string types (e.g. 'true' -> boolean).
  *
  * Only tracked collections have item rows; logged/untracked mail is absent here
  * by design (it carries no per-item external tracking id).
  *
  * @param {object} siteApi
- * @returns {Promise<Map<string, string[]>>}
+ * @returns {Promise<Map<string, object[]>>}  Map<headerTrackingNumber, items[]>
  */
-export async function loadExternalItemIndex(siteApi) {
-  const index = new Map()
+export async function loadGroupedExternalItems(siteApi) {
   try {
-    const items = await siteApi.list(LIST_EXTERNAL_ITEMS).getItems(
-      undefined,
-      { viewFields: ['Title', 'ExternalTrackingId'] },
-    )
-    for (const it of items) {
-      const id = (it.ExternalTrackingId || '').trim().toLowerCase()
-      if (!id) continue
-      const existing = index.get(it.Title)
-      if (existing) existing.push(id)
-      else index.set(it.Title, [id])
-    }
-    return index
+    return groupItemsByTitle(await siteApi.list(LIST_EXTERNAL_ITEMS).getItems())
   } catch (err) {
-    console.error('[external-mail] failed to load ' + LIST_EXTERNAL_ITEMS + ' index', err)
-    return index
+    console.error('[external-mail] failed to load ' + LIST_EXTERNAL_ITEMS, err)
+    return new Map()
   }
+}
+
+/**
+ * Group ExternalMailItems rows by their header tracking number (Title FK).
+ * @param {object[]} items
+ * @returns {Map<string, object[]>}
+ */
+export function groupItemsByTitle(items) {
+  const groups = new Map()
+  for (const it of items) {
+    const key = String(it.Title ?? '')
+    if (!key) continue
+    const existing = groups.get(key)
+    if (existing) existing.push(it)
+    else groups.set(key, [it])
+  }
+  return groups
 }
 
 /**
@@ -175,4 +184,39 @@ export function createCategoryCombos(row, categoryOptions, subcategoryMap) {
   })
 
   return [categoryCombo, subCombo]
+}
+
+/**
+ * Party ComboBox (allowCreate) backed by a mutable session pool.
+ *
+ * Problem: when renderGrid() rebuilds every row, a brand-new ComboBox is created
+ * with the original partyOptions array. Any user-created option exists only in the
+ * previous ComboBox instance's internal dataset (now garbage-collected), so the new
+ * ComboBox cannot match the FormField value and the display goes blank.
+ *
+ * Fix: on every select, if the value is not already in the shared pool, push it.
+ * On next renderGrid(), the pool includes the custom option, the ComboBox finds
+ * the match via _syncDatasetFromField, and the display is correct. As a bonus,
+ * the custom option also appears in other rows' dropdowns.
+ *
+ * @param {FormField} field       The row's party FormField.
+ * @param {string[]}  partyPool   Mutable array -- custom options are pushed here.
+ * @param {object}    [props]     Extra ComboBox props (placeholder, etc.).
+ * @returns {ComboBox}
+ */
+export function createPartyCombo(field, partyPool, props = {}) {
+  const { onSelectHandler: callerHandler, ...rest } = props
+  return new ComboBox(field, partyPool, {
+    allowMultiple: false,
+    allowFiltering: true,
+    allowCreate: true,
+    ...rest,
+    onSelectHandler: (sel) => {
+      const val = comboVal(sel)
+      if (val && !partyPool.includes(val)) {
+        partyPool.push(val)
+      }
+      callerHandler?.(sel)
+    },
+  })
 }

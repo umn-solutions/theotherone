@@ -1,5 +1,6 @@
 import { Container, Text, Button, Dialog, Toast, SiteApi } from '../../../libs/nofbiz/nofbiz.base.js'
 import { LIST_EXTERNAL_PACKAGES, TIMELINE_EVENT_REPRINT_DOCUMENT } from '../../../utils/constants.js'
+import { TOOLTIPS } from '../../../utils/copy.js'
 import { isFacilitiesAdmin } from '../../../utils/access.js'
 import { printSignatureDoc } from './qrSignatureDoc.js'
 import {
@@ -13,9 +14,9 @@ import {
 /**
  * Detail-panel actions shared by every facilities search dashboard (internal +
  * external), so the same status always offers the same buttons:
- *   - arrived            -> Chase (recipient must be reachable by email)
- *   - awaiting signature -> Reprint Document (courier Mail Order sheet)
- *   - every status       -> Reprint Label
+ *   - arrived            -> Send Reminder (recipient must be reachable by email)
+ *   - awaiting signature -> Reprint Document (courier Proof of Delivery sheet)
+ *   - not delivered      -> Reprint Label
  *   - pending | delivered -> Delete (FacilitiesManager only)
  *
  * Also owns the delete confirmation Dialog -- include `dialog` in the route's
@@ -51,7 +52,7 @@ export function createSearchPanelActions({ printContainer, onDeleted }) {
   function requestDelete(pkg, { close }) {
     pendingDelete = { pkg, closePanel: close }
     const extra = pkg.__listName === LIST_EXTERNAL_PACKAGES ? ', its items' : ''
-    confirmText.children = `Delete "${pkg.Title}"${extra} and its timeline history? This cannot be undone.`
+    confirmText.children = `Permanently delete "${pkg.Title}"${extra} and its history? This cannot be undone.`
     dialog.open()
   }
 
@@ -68,7 +69,7 @@ export function createSearchPanelActions({ printContainer, onDeleted }) {
       await onDeleted?.(pkg)
     } catch (err) {
       console.error('[searchPanelActions] delete failed', { title: pkg.Title, err })
-      loading.error('Failed to delete mail')
+      loading.error('Could not delete. Try again.')
     } finally {
       confirmBtn.isLoading = false
       pendingDelete = null
@@ -77,13 +78,15 @@ export function createSearchPanelActions({ printContainer, onDeleted }) {
 
   const actions = [
     {
-      label: 'Chase',
+      label: 'Send Reminder',
+      title: TOOLTIPS.detailPanel.sendReminder,
       variant: 'primary',
       isVisible: (pkg) => pkg.Status === 'arrived' && hasChaseableRecipient(pkg),
       onClick: chaseFromPanel,
     },
     {
       label: 'Reprint Document',
+      title: TOOLTIPS.detailPanel.reprintDocument,
       isVisible: (pkg) => pkg.Status === 'awaiting signature',
       onClick: async (pkg) => {
         await printSignatureDoc(pkg, printContainer)
@@ -93,6 +96,7 @@ export function createSearchPanelActions({ printContainer, onDeleted }) {
     createReprintLabelAction(printContainer),
     {
       label: 'Delete',
+      title: TOOLTIPS.detailPanel.deleteMail,
       variant: 'danger',
       isVisible: (pkg) => isFacilitiesAdmin() && DELETABLE_STATUSES.includes(pkg.Status),
       onClick: requestDelete,

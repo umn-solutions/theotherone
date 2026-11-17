@@ -7,6 +7,7 @@ import {
 } from '../../../libs/nofbiz/nofbiz.base.js'
 
 import { LIST_LOCATIONS } from '../../../utils/constants.js'
+import { workingFromText } from '../../../utils/copy.js'
 import { setHubLocation } from './hubLocation.js'
 
 /**
@@ -26,7 +27,7 @@ export async function createHubLocationModal(onSelect) {
     activeLocations = await siteApi.list(LIST_LOCATIONS).getItems({ IsActive: 'true' })
   } catch (err) {
     console.error('[hub-modal] failed to load locations', err)
-    Toast.error('Failed to load locations')
+    Toast.error('Could not load offices. Refresh to try again.')
   }
 
   let modal = null
@@ -39,16 +40,16 @@ export async function createHubLocationModal(onSelect) {
       onClickHandler: () => {
         setHubLocation(loc.Title)
         modal.close()
-        Toast.success(`Operating from: ${loc.Title}`)
+        Toast.success(workingFromText(loc.Title))
         if (typeof onSelect === 'function') onSelect(loc.Title)
       },
     }),
   )
 
   const modalContent = new Container([
-    new Text('Select Your Current Location', { type: 'h2', class: 'mail-hub__modal-title' }),
+    new Text('Select Your Working Office', { type: 'h2', class: 'mail-hub__modal-title' }),
     new Text(
-      'Choose the office you are currently working from. This location will be used for all mail operations in this session.',
+      'Choose the office you are working from. Every scan and status change you make this session is recorded at this office.',
       { type: 'p', class: 'mail-hub__modal-intro' },
     ),
     new Container(badges, { class: 'mail-hub__badge-grid' }),

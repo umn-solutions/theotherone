@@ -7,6 +7,6 @@ export default defineRoute(async (config) => {
   // Facilities route: employee+ access required
   if (!guardAccess('EMPLOYEE')) return []
 
-  // External reprint searches by tracking number only (not by sender/recipient).
-  return createLabelsRoute(config, EXTERNAL_MAIL, { variant: 'reprint', searchBy: 'tracking' })
+  // Search by recipient (default) or tracking ID -- see createLabelsRoute.
+  return createLabelsRoute(config, EXTERNAL_MAIL, { variant: 'reprint' })
 })

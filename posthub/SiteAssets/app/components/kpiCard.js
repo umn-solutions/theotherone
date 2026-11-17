@@ -1,4 +1,5 @@
 import { Container, Text } from '../libs/nofbiz/nofbiz.base.js'
+import { createTextWithTooltip } from '../utils/tooltip.js'
 
 /**
  * Reusable KPI tile.
@@ -13,15 +14,16 @@ import { Container, Text } from '../libs/nofbiz/nofbiz.base.js'
  * @param {string} args.delta.text    Preformatted chip text (e.g. "+8.2%", "-1.4 pp").
  * @param {'positive'|'negative'|'neutral'} [args.delta.tone]  Colors the chip.
  * @param {string} [args.delta.title] Tooltip / accessible hint (e.g. "vs previous period").
+ * @param {string} [args.tooltip]     Hover help on the label: how the metric is calculated.
  */
-export function createKpiCard({ label, value, sublabel, modifier, icon, delta }) {
+export function createKpiCard({ label, value, sublabel, modifier, icon, delta, tooltip }) {
   const cls = modifier ? `posthub__kpi-card posthub__kpi-card--${modifier}` : 'posthub__kpi-card'
 
   const headerChildren = []
   if (icon) {
     headerChildren.push(new Container([icon], { class: 'posthub__kpi-card__icon', as: 'span' }))
   }
-  headerChildren.push(new Text(label, { type: 'p', class: 'posthub__kpi-card__label' }))
+  headerChildren.push(createTextWithTooltip(label, tooltip, { type: 'p', class: 'posthub__kpi-card__label' }))
 
   const children = [
     new Container(headerChildren, { class: 'posthub__kpi-card__header' }),

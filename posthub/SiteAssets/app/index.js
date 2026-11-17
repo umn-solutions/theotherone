@@ -75,4 +75,5 @@ new Router([
 	"facilities/reports/internal-details", // Month-scoped internal mail dashboard
 	"facilities/reports/external-details", // Month-scoped external mail dashboard
 	"facilities/maintenance", // Route: /facilities/maintenance
+	"facilities/maintenance/full-export", // Admin-only: full Excel extraction of all mail
 ]);

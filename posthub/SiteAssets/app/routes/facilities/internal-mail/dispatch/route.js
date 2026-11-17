@@ -2,6 +2,7 @@ import { defineRoute } from '../../../../libs/nofbiz/nofbiz.base.js'
 import { createMailActionRoute } from '../../utils/mailActionTemplate.js'
 import { getLocationValue } from '../../../../utils/user-helpers.js'
 import { guardAccess } from '../../../../utils/access.js'
+import { PAGE_DESCRIPTIONS } from '../../../../utils/copy.js'
 
 export default defineRoute(async (config) => {
   // Facilities route: employee+ access required
@@ -9,7 +10,7 @@ export default defineRoute(async (config) => {
 
   return createMailActionRoute(config, {
     title: 'Dispatch',
-    subtitle: 'Dispatch mail for transport',
+    subtitle: PAGE_DESCRIPTIONS.dispatch,
     backRoute: 'facilities/internal-mail',
     expectedStatuses: ['pending'],
     getTargetStatus: (pkg, selectedLocation) =>

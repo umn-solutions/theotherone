@@ -11,8 +11,8 @@ export default defineRoute(async (config) => {
 
   return createLogForm(config, {
     direction: MAIL_DIRECTIONS.INCOMING,
-    title: 'Register Incoming Mail',
-    subtitle: 'Log incoming external mail items for reporting. Add a row per item. These items are not tracked.',
+    title: 'Log Incoming Mail',
+    subtitle: 'Log incoming mail for reporting. Add one row per item type.',
     backPath: 'facilities/external-mail/register-mail/incoming',
   })
 })

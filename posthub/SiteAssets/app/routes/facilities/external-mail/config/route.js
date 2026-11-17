@@ -10,6 +10,7 @@ import {
 
 import { createNavbar } from '../../../../components/navbar.js'
 import { guardAccess } from '../../../../utils/access.js'
+import { PAGE_DESCRIPTIONS } from '../../../../utils/copy.js'
 import {
   LIST_CATEGORIES,
   LIST_SUBCATEGORIES,
@@ -35,7 +36,7 @@ export default defineRoute(async (config) => {
       }),
       new Text('External Mail Configuration', { type: 'h1', class: 'posthub__page-title' }),
     ], { class: 'posthub__title-with-icon' }),
-    new Text('Manage the categories, subcategories, and external sources offered on the external mail forms.', {
+    new Text(PAGE_DESCRIPTIONS.externalConfig, {
       type: 'p',
       class: 'posthub__page-subtitle',
     }),
@@ -45,7 +46,7 @@ export default defineRoute(async (config) => {
     listName: LIST_CATEGORIES, singular: 'Category', plural: 'Categories', key: 'categories',
   })
   const sources = createConfigListManager(siteApi, {
-    listName: LIST_EXTERNAL_SOURCES, singular: 'External Source', plural: 'External Sources', key: 'sources',
+    listName: LIST_EXTERNAL_SOURCES, singular: 'External Party', plural: 'External Parties', key: 'sources',
   })
 
   // Subcategories are scoped under a parent Category -- the selector lists the

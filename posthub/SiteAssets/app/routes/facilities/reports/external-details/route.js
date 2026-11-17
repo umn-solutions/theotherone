@@ -8,8 +8,9 @@ import { createHorizontalBarChart } from '../../../../components/charts/horizont
 import { createFlowMatrix } from '../../../../components/charts/flowMatrix.js'
 import { createLineChart } from '../../../../components/charts/lineChart.js'
 
-import { STATUS_LABELS, DIRECTION_LABELS } from '../../../../utils/constants.js'
+import { STATUS_LABELS, DIRECTION_LABELS, TRACKING_NUMBER_LABEL } from '../../../../utils/constants.js'
 import { guardAccess } from '../../../../utils/access.js'
+import { TOOLTIPS } from '../../../../utils/copy.js'
 
 import { createReportDashboard } from '../utils/reportDashboard.js'
 import { fetchExternalMonth, monthStart } from '../utils/report-data.js'
@@ -145,11 +146,11 @@ export default defineRoute((config) => {
     charts.statusDonut.update(m.statuses, { centerLabel: fmtPctValue(k.pctDelivered), centerSublabel: 'delivered' })
 
     return [
-      createKpiCard({ label: 'Incoming', value: k.incoming, icon: getIcon('inbox-line'), sublabel: `${k.trackedQty} tracked, ${k.loggedQty} logged`, delta: deltaRel(k.incoming, p.incoming) }),
-      createKpiCard({ label: 'Outgoing', value: k.outgoing, icon: getIcon('send-plane-line'), delta: deltaRel(k.outgoing, p.outgoing) }),
-      createKpiCard({ label: 'Delivered', value: k.delivered, icon: getIcon('checkbox-circle-line'), sublabel: 'tracked items', delta: deltaRel(k.delivered, p.delivered) }),
-      createKpiCard({ label: '% Delivered', value: fmtPctValue(k.pctDelivered), icon: getIcon('check-double-line'), modifier: 'delivered', sublabel: 'of tracked items', delta: deltaPp(k.pctDelivered, p.pctDelivered) }),
-      createKpiCard({ label: 'Avg Delivery Time', value: formatDuration(k.avgMs), icon: getIcon('route-line'), sublabel: 'in transit to delivered', delta: deltaTime(k.avgMs, p.avgMs) }),
+      createKpiCard({ label: 'Incoming', value: k.incoming, icon: getIcon('inbox-line'), sublabel: `${k.trackedQty} tracked, ${k.loggedQty} logged`, delta: deltaRel(k.incoming, p.incoming), tooltip: TOOLTIPS.reports.incomingExternal }),
+      createKpiCard({ label: 'Outgoing', value: k.outgoing, icon: getIcon('send-plane-line'), delta: deltaRel(k.outgoing, p.outgoing), tooltip: TOOLTIPS.reports.outgoing }),
+      createKpiCard({ label: 'Delivered', value: k.delivered, icon: getIcon('checkbox-circle-line'), sublabel: 'tracked items', delta: deltaRel(k.delivered, p.delivered), tooltip: TOOLTIPS.reports.deliveredExternal }),
+      createKpiCard({ label: '% Delivered', value: fmtPctValue(k.pctDelivered), icon: getIcon('check-double-line'), modifier: 'delivered', sublabel: 'of tracked items', delta: deltaPp(k.pctDelivered, p.pctDelivered), tooltip: TOOLTIPS.reports.deliveredPctExternal }),
+      createKpiCard({ label: 'Avg Delivery Time', value: formatDuration(k.avgMs), icon: getIcon('route-line'), sublabel: 'in transit to delivered', delta: deltaTime(k.avgMs, p.avgMs), tooltip: TOOLTIPS.reports.avgDeliveryTime }),
     ]
   }
 
@@ -190,7 +191,7 @@ export default defineRoute((config) => {
       {
         name: 'Tracked',
         rows: m.cur.tracked.map(r => ({
-          'Tracking ID': r.Title,
+          [TRACKING_NUMBER_LABEL]: r.Title,
           Status: STATUS_LABELS[r.Status] || r.Status,
           Office: r.office,
           Items: r.qty,
@@ -216,30 +217,30 @@ export default defineRoute((config) => {
     siteApi,
     reportKey: 'external',
     title: 'External Mail Report',
-    subtitle: 'External mail volumes per office (tracked + logged items)',
+    subtitle: 'external mail volumes per office (tracked and logged items).',
     filterLabel: 'Office',
     filterHint: 'Receiving or sending office',
     rows: [
       {
         class: 'reports__overview',
         cards: [
-          { key: 'volumeByOffice', title: 'Volume by office', subtitle: 'Incoming and outgoing items per office' },
-          { key: 'categoryDonut', title: 'Volume by category', subtitle: 'Share of items by category' },
-          { key: 'categoryMatrix', title: 'Categories by office', subtitle: 'Category (rows) per office (columns)', scroll: true },
+          { key: 'volumeByOffice', title: 'Volume by Office', subtitle: 'Incoming and outgoing items per office' },
+          { key: 'categoryDonut', title: 'Volume by Category', subtitle: 'Share of items by category' },
+          { key: 'categoryMatrix', title: 'Categories by Office', subtitle: 'Category (rows) per office (columns)', scroll: true },
         ],
       },
       {
         class: 'reports__detail-2col',
         cards: [
-          { key: 'weekly', title: 'Weekly volume by office', subtitle: 'Items created per week of the month' },
-          { key: 'avgTime', title: 'Avg delivery time by office', subtitle: 'Tracked mail, in transit to delivered' },
+          { key: 'weekly', title: 'Weekly Volume by Office', subtitle: 'Items created per week of the month' },
+          { key: 'avgTime', title: 'Avg Delivery Time by Office', subtitle: 'Tracked mail, in transit to delivered' },
         ],
       },
       {
         class: 'reports__summary',
         cards: [
-          { key: 'indicators', title: 'Indicators by office', subtitle: 'Volume and delivery summary', scroll: true },
-          { key: 'statusDonut', title: 'Status of flow', subtitle: 'Tracked items across statuses' },
+          { key: 'indicators', title: 'Indicators by Office', subtitle: 'Volume and delivery summary', scroll: true },
+          { key: 'statusDonut', title: 'Status Breakdown', subtitle: 'Tracked items across statuses' },
         ],
       },
     ],

@@ -10,6 +10,7 @@ import { createNavbar } from '../../../components/navbar.js'
 import { isHubLocationSet } from '../utils/hubLocation.js'
 import { createHubLocationModal } from '../utils/hubLocationModal.js'
 import { guardAccess } from '../../../utils/access.js'
+import { PAGE_DESCRIPTIONS } from '../../../utils/copy.js'
 
 export default defineRoute(async (config) => {
   config.setRouteTitle('External Mail')
@@ -29,7 +30,7 @@ export default defineRoute(async (config) => {
         class: 'posthub__page-title',
       }),
     ], { class: 'posthub__title-with-icon' }),
-    new Text('Register, process, and track mail from external sources', {
+    new Text('Mail from outside the company: register it, receive it at the right office and deliver it.', {
       type: 'p',
       class: 'posthub__page-subtitle',
     }),
@@ -39,32 +40,32 @@ export default defineRoute(async (config) => {
     {
       icon: 'search-line',
       title: 'Search',
-      desc: 'Search external mail by tracking number, sender, recipient, status, or location.',
+      desc: PAGE_DESCRIPTIONS.externalSearch,
       route: 'search',
       wide: true,
     },
     {
       icon: 'printer-line',
       title: 'Reprint Labels',
-      desc: 'Reprint a QR label by searching its tracking number.',
+      desc: PAGE_DESCRIPTIONS.reprintLabels,
       route: 'reprint-labels',
     },
     {
       icon: 'inbox-line',
       title: 'Register Mail',
-      desc: 'Register incoming or outgoing external mail -- tracked (QR label) or as a quick log.',
+      desc: PAGE_DESCRIPTIONS.registerMail,
       route: 'register-mail',
     },
     {
       icon: 'download-line',
       title: 'Reception',
-      desc: 'Scan incoming external mail to confirm arrival, or pass it through.',
+      desc: PAGE_DESCRIPTIONS.externalReception,
       route: 'reception',
     },
     {
       icon: 'check-double-line',
       title: 'Delivery',
-      desc: 'Scan external mail to deliver it. Off-platform recipients route via courier handover + signed proof.',
+      desc: PAGE_DESCRIPTIONS.externalDelivery,
       route: 'delivery',
     },
   ]

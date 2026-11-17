@@ -1,6 +1,14 @@
 import { __dayjs } from '../libs/nofbiz/nofbiz.base.js'
 
 export const DAYJS_FORMAT = 'DD-MM-YYYY'
+// Display format for dates in tables and exports.
+export const DISPLAY_DATE_FORMAT = 'DD/MM/YYYY'
+
+/** Formats an ISO/date value for display; empty string when missing. */
+export const formatDisplayDate = (value) => (value ? __dayjs(value).format(DISPLAY_DATE_FORMAT) : '')
+
+/** Like formatDisplayDate, with time (24h). */
+export const formatDisplayDateTime = (value) => (value ? __dayjs(value).format(`${DISPLAY_DATE_FORMAT} HH:mm`) : '')
 
 export function parseFilterDate(str) {
   if (!str) return null

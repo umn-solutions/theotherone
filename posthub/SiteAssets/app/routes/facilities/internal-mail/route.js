@@ -10,6 +10,7 @@ import { createNavbar } from '../../../components/navbar.js'
 import { isHubLocationSet } from '../utils/hubLocation.js'
 import { createHubLocationModal } from '../utils/hubLocationModal.js'
 import { guardAccess } from '../../../utils/access.js'
+import { PAGE_DESCRIPTIONS } from '../../../utils/copy.js'
 
 export default defineRoute(async (config) => {
   config.setRouteTitle('Internal Mail')
@@ -29,17 +30,17 @@ export default defineRoute(async (config) => {
         class: 'posthub__page-title'
       }),
     ], { class: 'posthub__title-with-icon' }),
-    new Text('Select an action to process mail', {
+    new Text('Choose a step in the mail process.', {
       type: 'p',
       class: 'posthub__page-subtitle'
     }),
   ], { class: 'posthub__page-header' })
 
   const steps = [
-    { icon: 'printer-line', title: 'Print Labels', desc: 'Search for a sender, select their pending mail, and generate QR code labels for physical attachment', route: 'print-labels' },
-    { icon: 'send-plane-line', title: 'Dispatch', desc: 'Scan recently printed QR labels to dispatch the mail for transportation', route: 'dispatch' },
-    { icon: 'inbox-line', title: 'Reception', desc: 'Scan incoming mail at your office to confirm arrival at the destination, or just a pass-through location', route: 'reception' },
-    { icon: 'check-double-line', title: 'Delivery', desc: 'Scan arrived mail to mark them as delivered, completing the workflow', route: 'delivery' },
+    { icon: 'printer-line', title: 'Print Labels', desc: PAGE_DESCRIPTIONS.printLabels, route: 'print-labels' },
+    { icon: 'send-plane-line', title: 'Dispatch', desc: PAGE_DESCRIPTIONS.dispatch, route: 'dispatch' },
+    { icon: 'inbox-line', title: 'Reception', desc: PAGE_DESCRIPTIONS.internalReception, route: 'reception' },
+    { icon: 'check-double-line', title: 'Delivery', desc: PAGE_DESCRIPTIONS.internalDelivery, route: 'delivery' },
   ]
 
   const featureCards = new Container(
@@ -60,7 +61,7 @@ export default defineRoute(async (config) => {
     new Container([
       new Container([getIcon('search-line')], { class: 'internal-mail__card-step', as: 'span' }),
       new Text('Search Mail', { type: 'h2', class: 'internal-mail__card-title' }),
-      new Text('Search all mail by date, tracking number, sender, recipient, status, or location', {
+      new Text(PAGE_DESCRIPTIONS.internalSearch, {
         type: 'p',
         class: 'internal-mail__card-description'
       }),
@@ -71,7 +72,7 @@ export default defineRoute(async (config) => {
     new Container([
       new Container([getIcon('printer-line')], { class: 'internal-mail__card-step', as: 'span' }),
       new Text('Reprint Labels', { type: 'h2', class: 'internal-mail__card-title' }),
-      new Text('Reprint damaged or unreadable QR code labels for items already in the system', {
+      new Text(PAGE_DESCRIPTIONS.reprintLabels, {
         type: 'p',
         class: 'internal-mail__card-description'
       }),
@@ -82,7 +83,7 @@ export default defineRoute(async (config) => {
     new Container([
       new Container([getIcon('route-line')], { class: 'internal-mail__card-step', as: 'span' }),
       new Text('Reroute', { type: 'h2', class: 'internal-mail__card-title' }),
-      new Text('Redirect mail back to the sender or to a different destination, with a mandatory explanation', {
+      new Text(PAGE_DESCRIPTIONS.reroute, {
         type: 'p',
         class: 'internal-mail__card-description'
       }),

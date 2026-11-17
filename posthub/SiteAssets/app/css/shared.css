@@ -200,8 +200,8 @@
   max-width: 22rem;
 }
 
-/* Section headings break to their own full-width line within the flex bar. */
-.posthub__filter-sidebar--top .posthub__section-heading {
+/* Section headers break to their own full-width line within the flex bar. */
+.posthub__filter-sidebar--top .posthub__section-header {
   flex: 0 0 100%;
 }
 
@@ -223,6 +223,40 @@
   margin: 0;
 }
 
+/* Heading + hint pair spanning the full filter width (grid sidebar and top bar). */
+.posthub__section-header {
+  grid-column: 1 / -1;
+}
+
+/* Checkbox + right-hand FieldLabel. The shared .form-control rule forces
+   width:25ch on the checkbox (a wide bar) and FieldLabel --right stretches its
+   container (flex:1), pushing the label to the far edge. Restore the square box
+   and keep box + label together, left-aligned. */
+.posthub__checkbox-option .nofbiz__checkbox {
+  width: 1.25em;
+  flex: 0 0 auto;
+}
+
+.posthub__checkbox-option .nofbiz__fieldlabel__component-container {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+/* nofbiz caps FieldLabel text at 200px; checkbox labels read as one line. */
+.posthub__checkbox-option .nofbiz__fieldlabel__label {
+  max-width: none;
+}
+
+.posthub__filter-hint {
+  margin: 0;
+  font-size: var(--font-size-100);
+  color: var(--color-fg-tertiary);
+}
+
+.posthub__section-header .posthub__filter-hint {
+  margin-top: 0.125rem;
+}
+
 .posthub__section-heading--separator {
   margin-top: 0.25rem;
   padding-top: var(--space-mNudge);
@@ -239,6 +273,14 @@
   font-size: var(--font-size-100);
   font-weight: var(--font-weight-medium);
   color: var(--color-fg-secondary);
+}
+
+/* Text with hover help (utils/tooltip.js): label text + FieldLabel's info icon */
+.posthub__has-tooltip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  cursor: help;
 }
 
 .posthub__button-row {
@@ -435,6 +477,60 @@
   font-size: var(--font-size-300);
   color: var(--color-fg-secondary);
   margin: 0;
+}
+
+/* ===================================
+   Inline Notice (warning banner above a form)
+   =================================== */
+
+.posthub__notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-l) var(--space-xxl);
+  border-radius: var(--radius-lg);
+  border-left: 4px solid var(--color-brand-primary);
+  background: var(--color-bg-base);
+}
+
+.posthub__notice--warning {
+  border-left-color: var(--color-warning-primary);
+  background: var(--color-warning-bg);
+}
+
+.posthub__notice-title {
+  margin: 0;
+  font-size: var(--font-size-300);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-fg-primary);
+}
+
+.posthub__notice-text {
+  margin: 0;
+  font-size: var(--font-size-200);
+  line-height: 1.5;
+  color: var(--color-fg-secondary);
+}
+
+/* ===================================
+   Progress Bar (utils/progress-bar.js)
+   =================================== */
+
+.posthub__progress-track {
+  width: 100%;
+  height: 0.625rem;
+  margin: var(--space-l) 0;
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.posthub__progress-fill {
+  width: 0;
+  height: 100%;
+  background: var(--color-brand-primary);
+  border-radius: inherit;
+  transition: width var(--duration-normal) var(--curve-easy-ease);
 }
 
 /* ===================================
@@ -681,15 +777,16 @@
 }
 
 /* FieldLabel (position: left) + segmented toggle on one row */
-.external-mail-form__toggle-row {
+.posthub__toggle-row {
   display: flex;
   align-items: center;
   gap: var(--space-l);
   flex-wrap: wrap;
 }
 
-/* Segmented two-option toggle (e.g. recipient In directory / Off-platform) */
-.external-mail-form__segmented {
+/* Segmented toggle (utils/segmented-toggle.js): tracked-mail recipient type,
+   reprint-labels search mode */
+.posthub__segmented {
   display: inline-flex;
   width: fit-content;
   border: var(--stroke-thin) solid var(--color-stroke-subtle);
@@ -697,7 +794,7 @@
   overflow: hidden;
 }
 
-.external-mail-form__segmented .external-mail-form__seg-btn {
+.posthub__segmented .posthub__seg-btn {
   border: none;
   border-radius: 0;
   background: transparent;
@@ -708,12 +805,12 @@
   white-space: nowrap;
 }
 
-.external-mail-form__segmented .external-mail-form__seg-btn:hover {
+.posthub__segmented .posthub__seg-btn:hover {
   background: var(--color-bg-subtle);
 }
 
-.external-mail-form__segmented .external-mail-form__seg-btn--active,
-.external-mail-form__segmented .external-mail-form__seg-btn--active:hover {
+.posthub__segmented .posthub__seg-btn--active,
+.posthub__segmented .posthub__seg-btn--active:hover {
   background: var(--color-brand-primary);
   color: var(--color-brand-fg);
 }

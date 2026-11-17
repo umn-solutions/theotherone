@@ -12,11 +12,12 @@ import {
 } from '../../../../libs/nofbiz/nofbiz.base.js'
 import { dataToXLSX, downloadFile } from '../../../../libs/nofbiz/nofbiz.excelparser.js'
 import { createSearchPanelActions } from '../../utils/searchPanelActions.js'
+import { internalMailRows, INTERNAL_MAIL_COLUMN_WIDTHS } from '../../utils/mail-export-rows.js'
 
 import { createNavbar } from '../../../../components/navbar.js'
 import { createPackageDetailPanel } from '../../../../components/packageDetailPanel.js'
 import { LIST_PACKAGES, LIST_LOCATIONS } from '../../../../utils/constants.js'
-import { getLocationValue, getUserDisplayName } from '../../../../utils/user-helpers.js'
+import { getLocationValue } from '../../../../utils/user-helpers.js'
 import { createPackageTable } from '../../../../utils/package-table.js'
 import {
   trackingIdColumn, statusBadgeColumn, currentLocationColumn,
@@ -26,6 +27,7 @@ import { createEmptyState } from '../../../../utils/empty-state.js'
 import { parseFilterDate, defaultDateFrom, defaultDateTo, buildDateRangeClause } from '../../../../utils/date-helpers.js'
 import { createPackageFilters } from '../../../../utils/package-filters.js'
 import { guardAccess } from '../../../../utils/access.js'
+import { PAGE_DESCRIPTIONS, pluralize } from '../../../../utils/copy.js'
 
 export default defineRoute((config) => {
   config.setRouteTitle('Search Mail')
@@ -34,21 +36,6 @@ export default defineRoute((config) => {
   if (!guardAccess('EMPLOYEE')) return []
 
   const siteApi = new SiteApi()
-
-  // --- Helpers ---
-
-  function toExportRows(packages) {
-    return packages.map(pkg => ({
-      'Tracking ID': pkg.Title,
-      'Status': pkg.Status,
-      'Current Location': getLocationValue(pkg.CurrentLocation),
-      'Destination': getLocationValue(pkg.DestinationLocation),
-      'Sender': getUserDisplayName(pkg.Sender),
-      'Recipient': getUserDisplayName(pkg.Recipient),
-      'Mail Details': pkg.PackageDetails || '',
-      'Submitted On': pkg.SubmissionDate ? __dayjs(pkg.SubmissionDate).format('DD/MM/YYYY') : '',
-    }))
-  }
 
   // --- State ---
 
@@ -88,7 +75,7 @@ export default defineRoute((config) => {
       }),
       new Text('Search Mail', { type: 'h1', class: 'posthub__page-title' }),
     ], { class: 'posthub__title-with-icon' }),
-    new Text('Track or look up any mail by tracking number, sender, or recipient', {
+    new Text(PAGE_DESCRIPTIONS.internalSearch, {
       type: 'p', class: 'posthub__page-subtitle'
     }),
   ], { class: 'posthub__page-header' })
@@ -135,7 +122,7 @@ export default defineRoute((config) => {
       return
     }
 
-    const resultCount = new Text(`${searchResults.length} mail item(s) found`, {
+    const resultCount = new Text(`${pluralize(searchResults.length, 'mail item')} found`, {
       type: 'p',
       class: 'search-package__result-count',
     })
@@ -148,7 +135,7 @@ export default defineRoute((config) => {
       senderColumn(),
       recipientColumn(),
       packageDetailsColumn(),
-      dateColumn('Submitted On', 'SubmissionDate'),
+      dateColumn('Dispatched On', 'SubmissionDate'),
     ]
 
     const table = createPackageTable({
@@ -183,7 +170,7 @@ export default defineRoute((config) => {
       loading.dismiss()
     } catch (err) {
       console.error('[search-package] load packages failed', err)
-      loading.error('Failed to load mail')
+      loading.error('Could not load mail. Refresh to try again.')
     }
     applyFilters()
   }
@@ -212,7 +199,7 @@ export default defineRoute((config) => {
       activeLocations = await siteApi.list(LIST_LOCATIONS).getItems({ IsActive: 'true' })
     } catch (err) {
       console.error('[search-package] load locations failed', err)
-      Toast.error('Failed to load locations')
+      Toast.error('Could not load offices. Refresh to try again.')
     }
 
     const locationOptions = activeLocations.map(l => l.Title)
@@ -246,24 +233,15 @@ export default defineRoute((config) => {
           }
           exportButton.isLoading = true
           try {
-            const rows = toExportRows(searchResults)
+            const rows = internalMailRows(searchResults)
             const buffer = await dataToXLSX(rows, {
               sheetName: 'Mail Search',
-              columnWidths: {
-                'Tracking ID': 28,
-                'Status': 14,
-                'Current Location': 22,
-                'Destination': 22,
-                'Sender': 28,
-                'Recipient': 28,
-                'Mail Details': 30,
-                'Submitted On': 16,
-              },
+              columnWidths: INTERNAL_MAIL_COLUMN_WIDTHS,
             })
             downloadFile(buffer, `posthub-search-${__dayjs().format('YYYYMMDD-HHmmss')}.xlsx`)
           } catch (err) {
             console.error('[search-package] export failed', err)
-            Toast.error('Export failed')
+            Toast.error('Could not export. Try again.')
           } finally {
             exportButton.isLoading = false
           }

@@ -27,6 +27,7 @@ import {
 	TRACKING_PREFIX,
 	USER_DB_LINK,
 } from "../../utils/constants.js";
+import { TOOLTIPS } from "../../utils/copy.js";
 import { makeTrackingId } from "../../utils/tracking-id.js";
 import { cleanText, notifyRemovedChars } from "../../utils/text-field.js";
 
@@ -44,7 +45,7 @@ export default defineRoute(async (config) => {
 			.getItems({ IsActive: "true" });
 	} catch (err) {
 		console.error("[send-mail] failed to load locations", err);
-		Toast.error("Failed to load locations");
+		Toast.error("Could not load offices. Refresh to try again.");
 	}
 
 	// Navbar component
@@ -66,7 +67,7 @@ export default defineRoute(async (config) => {
 				{ class: "posthub__title-with-icon" },
 			),
 			new Text(
-				"Register your mail before delivering it to the nearest facilities desk",
+				"Register your mail here, then bring it to a facilities desk.",
 				{
 					type: "p",
 					class: "posthub__page-subtitle",
@@ -90,7 +91,7 @@ export default defineRoute(async (config) => {
 						class: "send-mail__step-card-title",
 					}),
 					new Text(
-						"Click here to look up the recipient's name and office location using the user database",
+						"Not sure where they sit? Look up their office in the company directory (opens in a new tab).",
 						{
 							type: "p",
 							class: "send-mail__step-card-text",
@@ -103,7 +104,6 @@ export default defineRoute(async (config) => {
 		{
 			class: "send-mail__step-card send-mail__step-card--link",
 			onClickHandler: () => {
-				console.warn("???");
 				Router.navigateTo(USER_DB_LINK, { newTab: true });
 			},
 		},
@@ -155,7 +155,7 @@ export default defineRoute(async (config) => {
 		[
 			new Container(
 				[
-					new Text("Drop-off Locations", {
+					new Text("Facilities Desks", {
 						type: "h3",
 						class: "send-mail__locations-title",
 					}),
@@ -167,7 +167,7 @@ export default defineRoute(async (config) => {
 				{ class: "send-mail__locations-header" },
 			),
 			new Text(
-				"Bring your mail to any of the facilities access points listed below.",
+				"Bring your mail to any of these facilities desks.",
 				{
 					type: "p",
 					class: "send-mail__locations-intro",
@@ -203,7 +203,7 @@ export default defineRoute(async (config) => {
 						class: "send-mail__step-card-title",
 					}),
 					new Text(
-						"Bring your physical mail to the nearest facilities desk. They'll generate a label and handle delivery from there",
+						"Take the item to any facilities desk. Staff print and attach the QR label, then send it on its way.",
 						{
 							type: "p",
 							class: "send-mail__step-card-text",
@@ -236,12 +236,12 @@ export default defineRoute(async (config) => {
 
 	const detailsField = new FormField({ value: "" });
 	const detailsTextArea = new TextArea(detailsField, {
-		placeholder: "Type here...",
+		placeholder: "e.g. A4 envelope with signed contracts",
 		rows: 3,
 	});
 
 	// Create button
-	const createBtn = new Button("Create", {
+	const createBtn = new Button("Register Mail", {
 		variant: "primary",
 		onClickHandler: async () => {
 			const rawRecipient = recipientField.value?.value ?? null;
@@ -296,7 +296,7 @@ export default defineRoute(async (config) => {
 					ChangedBy: UserIdentity.fromCurrentUser(user),
 				});
 
-				loading.success(`Mail ${trackingNumber} created`);
+				loading.success("Mail registered");
 				contentLoader.toggleLoader();
 				pageHeader.remove();
 
@@ -314,7 +314,7 @@ export default defineRoute(async (config) => {
 										class: "send-mail__step-card-title",
 									}),
 									new Text(
-										`Your mail ${trackingNumber} has been registered. Bring it to the nearest facilities desk -- they'll generate a label and handle delivery from there.`,
+										`Your tracking number is ${trackingNumber}. Bring the item to a facilities desk. Staff will label it and send it on its way.`,
 										{
 											type: "p",
 											class: "send-mail__step-card-text",
@@ -323,7 +323,7 @@ export default defineRoute(async (config) => {
 									new Container(
 										[
 											new LinkButton("Back to Home", "/"),
-											new Button("Send Another", {
+											new Button("Register Another", {
 												variant: "primary",
 												onClickHandler: () =>
 													Router.navigateTo(
@@ -342,7 +342,7 @@ export default defineRoute(async (config) => {
 				];
 			} catch (e) {
 				console.error("send-mail createItem error:", e);
-				loading.error("Failed to create mail");
+				loading.error("Could not register your mail. Please try again.");
 				contentLoader.toggleLoader();
 			} finally {
 				createBtn.isLoading = false;
@@ -368,16 +368,19 @@ export default defineRoute(async (config) => {
 					// Recipient Name
 					new FieldLabel("Recipient Name", recipientPicker, {
 						class: "send-mail__form-group",
+						tooltip: TOOLTIPS.sendMail.recipient,
 					}),
 
 					// Destination Office
 					new FieldLabel("Destination Office", destinationComboBox, {
 						class: "send-mail__form-group",
+						tooltip: TOOLTIPS.sendMail.destinationOffice,
 					}),
 
 					// Mail Details
 					new FieldLabel("Mail Details (optional)", detailsTextArea, {
 						class: "send-mail__form-group",
+						tooltip: TOOLTIPS.sendMail.mailDetails,
 					}),
 
 					createBtn,

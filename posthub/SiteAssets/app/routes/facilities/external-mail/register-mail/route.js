@@ -24,15 +24,15 @@ export default defineRoute((config) => {
       }),
       new Text('Register Mail', { type: 'h1', class: 'posthub__page-title' }),
     ], { class: 'posthub__title-with-icon' }),
-    new Text('Choose a direction to register external mail', {
+    new Text('Is the mail coming in or going out?', {
       type: 'p',
       class: 'posthub__page-subtitle',
     }),
   ], { class: 'posthub__page-header' })
 
   const cards = [
-    { title: 'Incoming Mail', desc: 'Mail arriving from an external source. Choose tracked (QR label + workflow) or a quick untracked log.', route: 'incoming' },
-    { title: 'Outgoing Mail', desc: 'Mail leaving the building to an external destination. Logged for reporting; never tracked.', route: 'outgoing' },
+    { title: 'Incoming Mail', desc: 'Mail received from outside the company. Next, choose whether to track it.', route: 'incoming' },
+    { title: 'Outgoing Mail', desc: 'Mail sent outside the company. Logged for reporting only.', route: 'outgoing' },
   ]
 
   const grid = new Container(

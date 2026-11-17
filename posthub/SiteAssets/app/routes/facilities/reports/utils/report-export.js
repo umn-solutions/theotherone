@@ -1,15 +1,11 @@
 import { __dayjs } from '../../../../libs/nofbiz/nofbiz.base.js'
-import { hucre, downloadFile } from '../../../../libs/nofbiz/nofbiz.excelparser.js'
 import { shortLabel, sumBy } from './report-stats.js'
 
 /**
- * Excel export helpers for the report dashboards. Sheets are plain row objects
- * (header = key); `downloadWorkbook` writes them as one multi-sheet XLSX via the
- * bundled hucre writer (dataToXLSX only supports a single sheet).
+ * Excel export helpers for the report dashboards. Row-shaping functions used by
+ * the detail-report routes; the multi-sheet writer lives in utils/workbook-export.js.
  */
 
-const DEFAULT_COL_WIDTH = 14
-const FIRST_COL_WIDTH = 26
 const MS_PER_HOUR = 3600000
 
 const round1 = (n) => (isFinite(n) ? Math.round(n * 10) / 10 : '')
@@ -68,27 +64,3 @@ export function statusSheetRows(slices, unit) {
   return slices.map(s => ({ Status: s.label, [unit]: s.value, '% of total': toPct(total ? (s.value / total) * 100 : 0) }))
 }
 
-/**
- * Write sheets to one XLSX and download it.
- * @param {Array<{ name: string, rows: object[] }>} sheets  Empty sheets get a "No data" row.
- * @param {string} filename
- */
-export async function downloadWorkbook(sheets, filename) {
-  const workbook = {
-    sheets: sheets.map(({ name, rows }) => {
-      const data = rows.length ? rows : [{ Info: 'No data for this period' }]
-      const keys = Object.keys(data[0])
-      return {
-        name,
-        columns: keys.map((key, i) => ({
-          header: key,
-          key,
-          width: Math.max(i === 0 ? FIRST_COL_WIDTH : DEFAULT_COL_WIDTH, key.length + 2),
-        })),
-        data,
-      }
-    }),
-  }
-  const bytes = await hucre.writeXlsx(workbook)
-  downloadFile(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), filename)
-}
