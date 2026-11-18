@@ -1,5 +1,8 @@
 export const APP_NAME = "Posthub";
 export const USER_DB_LINK = "http://localhost:5500/posthub/SitePages/";
+// Credit links on the home sidebar ("Powered by UMN Solutions in partnership with NCIS").
+export const UMN_LINK = "#";
+export const NCIS_LINK = "#";
 
 export const TRACKING_PREFIX = "POSTHUB";
 export const EXTERNAL_TRACKING_PREFIX = "EXT";

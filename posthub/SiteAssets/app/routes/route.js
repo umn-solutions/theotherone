@@ -7,9 +7,10 @@ import {
   Modal,
   AccordionItem,
   AccordionGroup,
+  escapeAttr,
 } from '../libs/nofbiz/nofbiz.base.js'
 import { createImageCard } from '../components/imageCard.js'
-import { APP_NAME, CLEANUP_STALE_DAYS } from '../utils/constants.js'
+import { APP_NAME, CLEANUP_STALE_DAYS, UMN_LINK, NCIS_LINK } from '../utils/constants.js'
 import { PAGE_DESCRIPTIONS } from '../utils/copy.js'
 import { isFacilitiesEmployee } from '../utils/access.js'
 
@@ -22,6 +23,10 @@ export default defineRoute((config) => {
   const SEND_MAIL_IMAGE_URL = '../SiteAssets/app/images/send-mail.png'
   const MY_MAIL_IMAGE_URL = '../SiteAssets/app/images/mailroom.png'
   const FACILITIES_IMAGE_URL = '../SiteAssets/app/images/facilities.jpg'
+
+  // Inline credit link (external partner site, opens in a new tab)
+  const creditLink = (href, label) =>
+    `<a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${label}</a>`
 
   // Sidebar with branding
   const sidebar = new Container([
@@ -39,10 +44,6 @@ export default defineRoute((config) => {
       alt: `${APP_NAME} Logo`,
       class: 'landing-page__logo'
     }),
-    new Text(APP_NAME, {
-      type: 'h1',
-      class: 'landing-page__title'
-    }),
     new Text('Secure, traceable mail between company offices.', {
       type: 'p',
       class: 'landing-page__subtitle'
@@ -52,7 +53,7 @@ export default defineRoute((config) => {
       onClickHandler: () => howItWorksModal.open(),
       class: 'landing-page__how-it-works-btn',
     }),
-    new Text('by UMN Solutions in partnership with NCIS', {
+    new Text(`Powered by ${creditLink(UMN_LINK, 'UMN Solutions')} in partnership with ${creditLink(NCIS_LINK, 'NCIS')}`, {
       type: 'p',
       class: 'landing-page__credits',
     }),

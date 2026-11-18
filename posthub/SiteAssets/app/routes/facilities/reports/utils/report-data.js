@@ -6,7 +6,8 @@ import {
   LIST_EXTERNAL_ITEMS,
   LIST_EXTERNAL_LOG,
 } from '../../../../utils/constants.js'
-import { DAYJS_FORMAT, buildDateRangeCaml } from '../../../../utils/date-helpers.js'
+import { DAYJS_FORMAT, buildDateRangeClause } from '../../../../utils/date-helpers.js'
+import { readItemsInIdWindows } from '../../../../utils/list-read.js'
 import { externalRecords, externalCategoryRecords } from './report-stats.js'
 
 /**
@@ -15,7 +16,7 @@ import { externalRecords, externalCategoryRecords } from './report-stats.js'
  * are dropped here (never relevant for reporting).
  *
  * When the previous month is requested (for delta chips), both months are
- * loaded with a single query per list and split client-side.
+ * loaded with a single read per list and split client-side.
  */
 
 const MONTH_KEY_FORMAT = 'YYYY-MM'
@@ -37,11 +38,15 @@ export function recentMonths(count = 24) {
 const inMonth = (key) => (item) => __dayjs(item.Created).format(MONTH_KEY_FORMAT) === key
 const notPending = (item) => item.Status !== 'pending'
 
-/** Items Created between the start of `fromKey` and the end of `toKey`. */
+/**
+ * Items Created between the start of `fromKey` and the end of `toKey`.
+ * Created is not indexed, so the range is applied inside threshold-safe ID
+ * windows (a plain Where on it fails once a list passes 5,000 items).
+ */
 function getCreatedBetween(siteApi, listName, fromKey, toKey) {
   const from = monthStart(fromKey).format(DAYJS_FORMAT)
   const to = monthStart(toKey).endOf('month').format(DAYJS_FORMAT)
-  return siteApi.list(listName).getItems(buildDateRangeCaml(from, to, 'Created', false))
+  return readItemsInIdWindows(siteApi, listName, { where: buildDateRangeClause(from, to, 'Created') })
 }
 
 // Status changes happen after creation, so the timeline window extends past the

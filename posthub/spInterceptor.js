@@ -231,10 +231,17 @@ var SPInterceptor = (function ($) {
 
   // -- CAML query engine --
 
+  // CAML 'ID' is the item's Id property.
+  function _fieldRaw(item, fieldName) {
+    return fieldName === 'ID' ? item.Id : item[fieldName];
+  }
+
   function _fieldAsString(item, fieldName) {
-    var v = item[fieldName];
+    var v = _fieldRaw(item, fieldName);
     return (v === null || v === undefined) ? '' : String(v);
   }
+
+  var NUMERIC_VALUE_TYPES = { Counter: true, Integer: true, Number: true };
 
   function _buildPredicate(el) {
     var tag = el.tagName;
@@ -263,6 +270,20 @@ var SPInterceptor = (function ($) {
     var field = fieldRef.getAttribute('Name');
     var val = valueEl.textContent || '';
 
+    // Numeric value types (e.g. ID windows) compare as numbers, not strings.
+    if (NUMERIC_VALUE_TYPES[valueEl.getAttribute('Type')]) {
+      var num = Number(val);
+      var asNum = function (item) { return Number(_fieldRaw(item, field)); };
+      switch (tag) {
+        case 'Eq':  return function (item) { return asNum(item) === num; };
+        case 'Neq': return function (item) { return asNum(item) !== num; };
+        case 'Gt':  return function (item) { return asNum(item) > num; };
+        case 'Lt':  return function (item) { return asNum(item) < num; };
+        case 'Geq': return function (item) { return asNum(item) >= num; };
+        case 'Leq': return function (item) { return asNum(item) <= num; };
+      }
+    }
+
     switch (tag) {
       case 'Eq':         return function (item) { return _fieldAsString(item, field) === val; };
       case 'Neq':        return function (item) { return _fieldAsString(item, field) !== val; };
@@ -277,7 +298,8 @@ var SPInterceptor = (function ($) {
   }
 
   function _parseCAMLViewXml(viewXml) {
-    var result = { predicate: null, orderBy: [], viewFields: [], rowLimit: 500 };
+    // No RowLimit = every match in one response (SharePoint semantics).
+    var result = { predicate: null, orderBy: [], viewFields: [], rowLimit: Infinity, paged: false };
     if (!viewXml) return result;
 
     var doc = new DOMParser().parseFromString(viewXml, 'application/xml');
@@ -317,6 +339,8 @@ var SPInterceptor = (function ($) {
     if (rowLimit) {
       var parsed = parseInt(rowLimit.textContent, 10);
       if (!isNaN(parsed) && parsed > 0) result.rowLimit = parsed;
+      // Only a Paged RowLimit returns a ListItemCollectionPosition cursor.
+      result.paged = /^true$/i.test(rowLimit.getAttribute('Paged') || '');
     }
 
     return result;
@@ -327,8 +351,11 @@ var SPInterceptor = (function ($) {
     return items.slice().sort(function (a, b) {
       for (var i = 0; i < orderByDefs.length; i++) {
         var def = orderByDefs[i];
-        var av = _fieldAsString(a, def.field);
-        var bv = _fieldAsString(b, def.field);
+        var ar = _fieldRaw(a, def.field);
+        var br = _fieldRaw(b, def.field);
+        var numeric = typeof ar === 'number' && typeof br === 'number';
+        var av = numeric ? ar : _fieldAsString(a, def.field);
+        var bv = numeric ? br : _fieldAsString(b, def.field);
         if (av < bv) return def.ascending ? -1 : 1;
         if (av > bv) return def.ascending ? 1 : -1;
       }
@@ -336,7 +363,7 @@ var SPInterceptor = (function ($) {
     });
   }
 
-  function _paginateItems(items, rowLimit, pagingInfoStr) {
+  function _paginateItems(items, rowLimit, paged, pagingInfoStr) {
     var startIndex = 0;
     if (pagingInfoStr) {
       var idMatch = pagingInfoStr.match(/p_ID=(\d+)/);
@@ -350,7 +377,7 @@ var SPInterceptor = (function ($) {
     var pageItems = items.slice(startIndex, startIndex + rowLimit);
     var hasMore = startIndex + rowLimit < items.length;
     var position = null;
-    if (hasMore && pageItems.length > 0) {
+    if (paged && hasMore && pageItems.length > 0) {
       var lastItem = pageItems[pageItems.length - 1];
       position = { PagingInfo: 'Paged=TRUE&p_ID=' + lastItem.Id };
     }
@@ -547,7 +574,7 @@ var SPInterceptor = (function ($) {
           ? list.items.filter(caml.predicate)
           : list.items.slice();
         var sorted = _sortItems(filtered, caml.orderBy);
-        var page = _paginateItems(sorted, caml.rowLimit, pagingInfo);
+        var page = _paginateItems(sorted, caml.rowLimit, caml.paged, pagingInfo);
         var results = page.pageItems.map(function (item) {
           var projected = _filterViewFields(item, caml.viewFields);
           projected['odata.etag'] = '"' + item.Id + '"';

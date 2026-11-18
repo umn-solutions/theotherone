@@ -5,6 +5,7 @@ import {
   TRACKING_PREFIX,
   EXTERNAL_TRACKING_PREFIX,
 } from './constants.js'
+import { readItemsInIdWindows } from './list-read.js'
 
 /**
  * Mail "context" objects parameterize the shared facilities workflow engine
@@ -60,28 +61,20 @@ export async function fetchTaggedItems(siteApi, listName, query, options) {
 }
 
 /**
- * Fetch EVERY item of one list page by page (no CAML Where, so it never hits the
- * list view threshold), tagging each with `__listName`. Reports progress after
- * each page and stops early when `shouldStop()` turns true. Rejects on failure.
+ * Fetch every item of one list (optionally matching a bare CAML condition),
+ * tagging each with `__listName`. Reads in ID windows so it never exceeds the
+ * list view threshold, whatever the filter or list size (see list-read.js).
+ * Rejects on failure.
  *
  * @param {object} siteApi
  * @param {string} listName
- * @param {object} [opts]
- * @param {number} [opts.pageSize=2000]  Items per request (CAML RowLimit).
- * @param {(pageCount: number) => void} [opts.onPage]  Called with each page's item count.
- * @param {() => boolean} [opts.shouldStop]  Checked between pages (e.g. user cancelled).
- * @returns {Promise<object[]>} Items read so far (all, unless stopped early).
+ * @param {object} [opts]  readItemsInIdWindows options (where, onBatch, shouldStop).
+ * @returns {Promise<object[]>} Items read (all, unless stopped early).
  */
-export async function fetchAllTaggedItemsPaged(siteApi, listName, { pageSize = 2000, onPage, shouldStop } = {}) {
-  const out = []
-  let page = await siteApi.list(listName).getItemsPaged(undefined, { pageSize })
-  for (;;) {
-    for (const it of page.items) it.__listName = listName
-    out.push(...page.items)
-    onPage?.(page.items.length)
-    if (!page.next || shouldStop?.()) return out
-    page = await page.next()
-  }
+export async function fetchAllTaggedItems(siteApi, listName, opts) {
+  const items = await readItemsInIdWindows(siteApi, listName, opts)
+  for (const it of items) it.__listName = listName
+  return items
 }
 
 /**
@@ -91,7 +84,9 @@ export async function fetchAllTaggedItemsPaged(siteApi, listName, { pageSize = 2
  *
  * @param {object} siteApi
  * @param {string[]} listNames
- * @param {object|string} [query]  CAML query object/string (omit for all items)
+ * @param {object|string} [query]  CAML query object/string. Omit for all items
+ *   (read threshold-safe via fetchAllTaggedItems). A query must narrow on an
+ *   indexed column (e.g. Title) or it can exceed the list view threshold.
  * @param {object} [options]       getItems options (orderBy, limit, viewFields)
  * @returns {Promise<object[]>}
  */
@@ -99,7 +94,9 @@ export async function fetchItemsAcrossLists(siteApi, listNames, query, options) 
   const out = []
   for (const name of listNames) {
     try {
-      out.push(...await fetchTaggedItems(siteApi, name, query, options))
+      out.push(...await (query === undefined
+        ? fetchAllTaggedItems(siteApi, name)
+        : fetchTaggedItems(siteApi, name, query, options)))
     } catch (err) {
       console.error('[mail-context] failed to load list ' + name, err)
     }

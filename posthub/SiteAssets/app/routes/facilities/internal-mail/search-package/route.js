@@ -25,6 +25,7 @@ import {
 } from '../../../../utils/package-table-columns.js'
 import { createEmptyState } from '../../../../utils/empty-state.js'
 import { parseFilterDate, defaultDateFrom, defaultDateTo, buildDateRangeClause } from '../../../../utils/date-helpers.js'
+import { readItemsInIdWindows } from '../../../../utils/list-read.js'
 import { createPackageFilters } from '../../../../utils/package-filters.js'
 import { guardAccess } from '../../../../utils/access.js'
 import { PAGE_DESCRIPTIONS, pluralize } from '../../../../utils/copy.js'
@@ -149,24 +150,25 @@ export default defineRoute((config) => {
   }
 
   // Fetch packages: branches on whether a tracking id is present.
-  // - tracking non-empty: global search via Contains on indexed Title (no date clause)
+  // - tracking non-empty: global search via Contains on Title (no date clause)
   // - tracking empty: SubmissionDate range, plus all pending mail regardless of range
+  // Contains and Or cannot use an index, so the condition is applied inside
+  // threshold-safe ID windows (see utils/list-read.js).
   async function fetchPackages(from, to) {
-    let caml
+    let where
     if (filters.tracking) {
-      // Global search by tracking substring (Contains on indexed Title).
       const escaped = filters.tracking.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      caml = `<View><Query><Where><Contains><FieldRef Name='Title'/><Value Type='Text'>${escaped}</Value></Contains></Where></Query></View>`
+      where = `<Contains><FieldRef Name='Title'/><Value Type='Text'>${escaped}</Value></Contains>`
     } else {
       const rangeClause = buildDateRangeClause(from, to, 'SubmissionDate')
-      caml = rangeClause
-        ? `<View><Query><Where><Or>${rangeClause}<Eq><FieldRef Name='Status'/><Value Type='Text'>pending</Value></Eq></Or></Where></Query></View>`
+      where = rangeClause
+        ? `<Or>${rangeClause}<Eq><FieldRef Name='Status'/><Value Type='Text'>pending</Value></Eq></Or>`
         : undefined
     }
 
     const loading = Toast.loading('Loading mail...')
     try {
-      allPackages = await siteApi.list(LIST_PACKAGES).getItems(caml)
+      allPackages = await readItemsInIdWindows(siteApi, LIST_PACKAGES, { where })
       loading.dismiss()
     } catch (err) {
       console.error('[search-package] load packages failed', err)

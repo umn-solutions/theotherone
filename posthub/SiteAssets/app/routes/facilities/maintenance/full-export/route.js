@@ -19,7 +19,7 @@ import { guardAccess } from '../../../../utils/access.js'
 import { PAGE_DESCRIPTIONS, TOOLTIPS } from '../../../../utils/copy.js'
 import { createProgressBar } from '../../../../utils/progress-bar.js'
 import { downloadWorkbook } from '../../../../utils/workbook-export.js'
-import { fetchAllTaggedItemsPaged } from '../../../../utils/mail-context.js'
+import { fetchAllTaggedItems } from '../../../../utils/mail-context.js'
 import { parseFilterDate, formatDisplayDate, formatDisplayDateTime } from '../../../../utils/date-helpers.js'
 import {
   createMultiSelectFilter, filterGroup, filterSectionHeader, STATUS_FILTER_OPTIONS,
@@ -223,10 +223,10 @@ export default defineRoute(async (config) => {
   }
 
   /**
-   * Client-side match. The lists are read without a CAML Where on purpose:
-   * Created/Status/locations are not all indexed, and a filtered query on a
-   * list over the view threshold (5,000) would fail. Reading everything and
-   * filtering here has no size limit.
+   * Client-side match. The lists are read whole (in threshold-safe ID windows,
+   * see utils/list-read.js) and filtered here: locations are stored as JSON,
+   * log-row destinations are derived and the date falls back to SubmissionDate,
+   * none of which a CAML Where can express.
    */
   function matches(pkg, c) {
     if (c.from || c.to) {
@@ -327,8 +327,8 @@ export default defineRoute(async (config) => {
           progress.set(Math.min(fraction, 1) * READ_PHASE_PCT)
         }
         report()
-        data[listName] = await fetchAllTaggedItemsPaged(siteApi, listName, {
-          onPage: (n) => { readFromList += n; readSoFar += n; report() },
+        data[listName] = await fetchAllTaggedItems(siteApi, listName, {
+          onBatch: (n) => { readFromList += n; readSoFar += n; report() },
           shouldStop: () => cancelRequested,
         })
       }

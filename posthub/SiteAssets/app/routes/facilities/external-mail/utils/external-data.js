@@ -7,6 +7,7 @@ import {
   LIST_EXTERNAL_ITEMS,
 } from '../../../../utils/constants.js'
 import { fetchItemsAcrossLists } from '../../../../utils/mail-context.js'
+import { readItemsInIdWindows } from '../../../../utils/list-read.js'
 import { makeTrackingId } from '../../../../utils/tracking-id.js'
 
 /**
@@ -75,7 +76,8 @@ export const loadPartyOptions = (siteApi) => loadSourceOptions(siteApi)
  */
 export async function loadGroupedExternalItems(siteApi) {
   try {
-    return groupItemsByTitle(await siteApi.list(LIST_EXTERNAL_ITEMS).getItems())
+    // Whole list: read in threshold-safe ID windows (see utils/list-read.js).
+    return groupItemsByTitle(await readItemsInIdWindows(siteApi, LIST_EXTERNAL_ITEMS))
   } catch (err) {
     console.error('[external-mail] failed to load ' + LIST_EXTERNAL_ITEMS, err)
     return new Map()
